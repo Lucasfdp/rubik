@@ -8,7 +8,7 @@ A lo largo de este roadmap, los dos tocáis el interior del solver. La costura e
 
 Hacedlo juntos, en la misma sala/llamada, escribiendo código codo con codo. Esto fija el vocabulario compartido para todo lo que viene después, y un desacuerdo aquí cuesta una semana entera más adelante si no se detecta ahora.
 
-- Acordar la indexación de cubies: orden de esquinas URF, UFL, ULB, UBR, DFR, DLF, DLB, DBR; orden de aristas UR, UF, UL, UB, DR, DF, DL, DB, FR, FL, BL, BR. **Escribidlo en `DECISIONS.md` y no lo cambiéis nunca** — todo el código que cualquiera de los dos escriba a partir de aquí asume exactamente este orden.
+- Acordar la indexación de cubies: orden de esquinas URF, UFL, ULB, UBR, DFR, DLF, DBL, DRB; orden de aristas UR, UF, UL, UB, DR, DF, DL, DB, FR, FL, BL, BR — coincide exactamente con la notación de Kociemba (ver `02a-cube-notation.md`), que es lo que hace que vuestros vectores de test se puedan comparar con solvers de referencia. **Escribidlo en `DECISIONS.md` y no lo cambiéis nunca** — todo el código que cualquiera de los dos escriba a partir de aquí asume exactamente este orden.
 - Acordar el orden del string de layout de facelets (U-R-F-D-L-B, 9 pegatinas cada una).
 - Construir la struct `t_cube`, las tablas de permutación de los 18 movimientos, y `apply_move()`.
 - Escribir un arnés de pruebas: aplicar un movimiento 4 veces → debería volver al estado resuelto (cuatro giros de 90° = 360° = sin cambio). Aplicar la secuencia `R U R' U'` seis veces → debería volver al estado resuelto (es una identidad conocida de la teoría del cubo). Aplicar un scramble, y luego su inverso exacto → debería volver al estado resuelto.

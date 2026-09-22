@@ -8,7 +8,7 @@ Both of you touch solver internals over the course of this roadmap. The seam is 
 
 Do this one together, in the same room/call, writing code side by side. It sets the shared vocabulary for everything that follows, and a disagreement here costs a full week later if it's not caught now.
 
-- Agree cubie indexing: corner order URF, UFL, ULB, UBR, DFR, DLF, DLB, DBR; edge order UR, UF, UL, UB, DR, DF, DL, DB, FR, FL, BL, BR. **Write it down in `DECISIONS.md` and never change it** — every piece of code either of you writes from here on assumes this exact ordering.
+- Agree cubie indexing: corner order URF, UFL, ULB, UBR, DFR, DLF, DBL, DRB; edge order UR, UF, UL, UB, DR, DF, DL, DB, FR, FL, BL, BR — this matches Kociemba's own naming exactly (see `02a-cube-notation.md`), which is what makes your test vectors comparable to reference solvers. **Write it down in `DECISIONS.md` and never change it** — every piece of code either of you writes from here on assumes this exact ordering.
 - Agree the facelet layout string order (U-R-F-D-L-B, 9 stickers each).
 - Build the `t_cube` struct, the 18 move permutation tables, and `apply_move()`.
 - Write a test harness: apply a move 4 times → should return to solved (four 90° turns = 360° = no change). Apply the sequence `R U R' U'` six times → should return to solved (this is a well-known cube-theory identity). Apply a scramble, then its exact inverse → should return to solved.
