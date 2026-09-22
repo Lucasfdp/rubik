@@ -9,7 +9,7 @@
 Before comparing algorithms, it helps to know that options B–E below share about 70% of their code. That shared code is:
 
 1. **Cubie model** — the cube represented as 8 corner pieces and 12 edge pieces, each tracked by *where it is* (its permutation — see glossary) and *how it's twisted/flipped* (its orientation). Corners have 3 possible orientations (0, 1, or 2 — think "not twisted, twisted clockwise, twisted counter-clockwise"); edges have 2 (flipped or not).
-2. **Facelet model** — the cube as 54 individual stickers. This is what you use for reading input, writing output, and driving the 3D renderer — it's the "what does it look like" view, as opposed to the cubie model's "what piece is where" view.
+2. **Facelet model** — the cube as 54 individual stickers. This is what you use for reading input, writing output, and driving the 3D renderer — it's the "what does it look like" view, as opposed to the cubie model's "what piece is where" view. (For the actual piece names, facelet index numbering, and how twist/flip are encoded, see `02a-cube-notation.md`.)
 3. **Move application** — the 18 possible moves (6 faces × {90° clockwise, 90° counter-clockwise, 180°}), each implemented as a permutation table: a precomputed lookup of "piece in slot X moves to slot Y" for that move.
 4. **Coordinate encoders** — functions that compress a full cubie-model cube down into one small integer (a "coordinate" — see below). This is the trick that makes the whole thing searchable.
 5. **Move tables** — precomputed lookups of the form `new_coordinate = table[old_coordinate][move]`. Built once, at startup, by applying each move to every coordinate value at the cubie level and recording the result.

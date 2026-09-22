@@ -8,14 +8,15 @@ This is the index. Each linked file covers one decision area in full, with plain
 
 1. **`01-requirements.md`** — what the subject actually forces us to do, and the numbers that explain *why* (state space size, God's Number, why layer-by-layer fails).
 2. **`02-algorithms.md`** — the solver decision. Five options compared, Kociemba's two-phase algorithm recommended.
-3. **`03-graphics.md`** — the 3D bonus decision. raylib vs. hand-rolled rasterizer vs. raw OpenGL.
-4. **`04-architecture.md`** — how the code is laid out so the anti-cheat rule is structural and two people can work in parallel.
-5. **`05-roadmap-mandatory.md`** — sprint-by-sprint plan for the required part.
-6. **`06-roadmap-bonus.md`** — sprint-by-sprint plan for the 3D bonus.
-7. **`07-defence-prep.md`** — the questions you'll get asked at evaluation, with whiteboard-ready answers.
-8. **`08-risks-and-open-decisions.md`** — what could go wrong, and the decisions still left for the two of you to make.
-9. **`09-sources.md`** — every claim above that isn't "we decided this" traces back to one of these.
-10. **`GLOSSARY.md`** — every technical term used across all the files above, defined from scratch. No prior group-theory or graphics knowledge assumed.
+3. **`02a-cube-notation.md`** — every cubie and facelet named, Kociemba's facelet indexing, and how corner twist / edge flip are encoded. Read this alongside `02-algorithms.md` §3.0.
+4. **`03-graphics.md`** — the 3D bonus decision. raylib vs. hand-rolled rasterizer vs. raw OpenGL.
+5. **`04-architecture.md`** — how the code is laid out so the anti-cheat rule is structural and two people can work in parallel.
+6. **`05-roadmap-mandatory.md`** — sprint-by-sprint plan for the required part.
+7. **`06-roadmap-bonus.md`** — sprint-by-sprint plan for the 3D bonus.
+8. **`07-defence-prep.md`** — the questions you'll get asked at evaluation, with whiteboard-ready answers.
+9. **`08-risks-and-open-decisions.md`** — what could go wrong, and the decisions still left for the two of you to make.
+10. **`09-sources.md`** — every claim above that isn't "we decided this" traces back to one of these.
+11. **`GLOSSARY.md`** — every technical term used across all the files above, defined from scratch. No prior group-theory or graphics knowledge assumed.
 
 ## Recommendation, up front
 
