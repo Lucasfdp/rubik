@@ -98,6 +98,12 @@ endif
 COMPILED	:=	0
 MAKEFLAGS	+=	--no-print-directory
 
+# Make's default goal is the FIRST rule in the file, not whichever target is
+# named "all" — and $(RAYLIB_LIB)'s rule appears earlier in this file than
+# the "all:" target does. Without this, bare `make` would silently try to
+# build raylib instead of the mandatory binary. Pin it explicitly.
+.DEFAULT_GOAL := all
+
 # ==========================
 # raylib (bonus only — vendored, never installed system-wide)
 # ==========================
