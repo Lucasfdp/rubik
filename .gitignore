@@ -1,0 +1,72 @@
+# =============================================================================
+#  rubik — .gitignore
+#
+#  Deliberately KEPT in the repo, because they're the point of publishing it:
+#    docs/en/ docs/es/   the prep docs, glossary, and this notation reference
+#    srcs/ includes/ tests/ Makefile
+#    lib/raylib/         vendored as a git submodule (.gitmodules), not ignored —
+#                         its own build byproducts are hidden from `git status`
+#                         via `ignore = untracked` in .gitmodules instead
+# =============================================================================
+.gitignore
+
+# --- build output -------------------------------------------------------------
+# object files, static archives, and the -MMD/-MP dependency files.
+*.o
+*.a
+*.d
+obj/
+
+# Binaries. Git can't spot an extensionless executable on its own, so they have
+# to be named. Both the mandatory and bonus binaries, plus the unit tests.
+rubik
+rubik_bonus
+test_moves
+test_cubie
+test_facelet
+test_coord
+a.out
+*.out
+
+# --- debugger / profiler leftovers ---------------------------------------------
+core
+core.*
+vgcore.*
+.gdb_history
+*.dSYM/
+callgrind.out.*
+massif.out.*
+perf.data*
+
+# --- local tooling, not other people's business --------------------------------
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+.vscode/
+.idea/
+*.code-workspace
+
+# --- editor / OS noise ----------------------------------------------------------
+*.swp
+*.swo
+*~
+.DS_Store
+._*
+.AppleDouble
+.Spotlight-V100
+.Trashes
+Thumbs.db
+
+# --- scratch ----------------------------------------------------------------------
+scratch/
+tmp/
+*.tmp
+*.log
+.env
+*.local
+
+# --- the 42 subject ----------------------------------------------------------------
+# 42's PDF, not yours to redistribute — and dead weight in a repo whose value is
+# the docs and code you wrote. Delete this line if you disagree.
+rubik.pdf
+*.subject.pdf
