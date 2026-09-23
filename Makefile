@@ -147,6 +147,16 @@ RED			= \033[0;31m
 MAGENTA		= \033[0;35m
 BOLD		= \033[1m
 RESET		= \033[0m
+BG_RED		= \033[41m
+BG_GRN		= \033[42m
+BG_YEL		= \033[43m
+BG_BLU		= \033[44m
+BG_WHT		= \033[47m
+BG_ORG		= \033[48;5;208m
+WHITE		= \033[1;37m
+ORANGE		= \033[38;5;208m
+BG_TOP		= \033[48;5;250m
+BG_SIDE		= \033[48;5;238m
 
 # ==========================
 # Targets
@@ -322,18 +332,85 @@ push:
 # ==========================
 banner:
 	@if [ -t 1 ] && [ -n "$$TERM" ] && command -v clear >/dev/null 2>&1; then clear; fi
-	@printf "\n$(CYAN)"
-	@sleep 0.05
-	@printf "%s\n" " ____  _   _ ____ ___ _  __"
-	@sleep 0.15
-	@printf "%s\n" "|  _ \\| | | | __ )_ _| |/ /"
-	@sleep 0.15
-	@printf "%s\n" "| |_) | | | |  _ \\| || ' / "
-	@sleep 0.15
-	@printf "%s\n" "|  _ <| |_| | |_) | || . \\ "
-	@sleep 0.15
-	@printf "%s\n" "|_| \\_\\\\___/|____/___|_|\\_\\"
-	@printf "$(RESET)\n"
+	@printf "\n"
+	@sleep 0.03
+	@printf "$(RED)████ $(RESET)  $(WHITE)█   █$(RESET)  $(BLUE)████ $(RESET)  $(ORANGE)█████$(RESET)  $(GREEN)█   █$(RESET)\n"
+	@sleep 0.03
+	@printf "$(RED)█   █$(RESET)  $(WHITE)█   █$(RESET)  $(BLUE)█   █$(RESET)  $(ORANGE)  █  $(RESET)  $(GREEN)█  █ $(RESET)\n"
+	@sleep 0.03
+	@printf "$(RED)████ $(RESET)  $(WHITE)█   █$(RESET)  $(BLUE)████ $(RESET)  $(ORANGE)  █  $(RESET)  $(GREEN)███  $(RESET)\n"
+	@sleep 0.03
+	@printf "$(RED)█  █ $(RESET)  $(WHITE)█   █$(RESET)  $(BLUE)█   █$(RESET)  $(ORANGE)  █  $(RESET)  $(GREEN)█  █ $(RESET)\n"
+	@sleep 0.03
+	@printf "$(RED)█   █$(RESET)  $(WHITE) ███ $(RESET)  $(BLUE)████ $(RESET)  $(ORANGE)█████$(RESET)  $(GREEN)█   █$(RESET)\n\n"
+	@bash -c '\
+		COLORS=("$(BG_RED)" "$(BG_GRN)" "$(BG_YEL)" "$(BG_BLU)" "$(BG_WHT)" "$(BG_ORG)"); \
+		pick() { echo "$${COLORS[$$RANDOM % 6]}"; }; \
+		TOP_COLOR="$$(pick)"; \
+		SIDE_COLOR="$$(pick)"; \
+		while [ "$$SIDE_COLOR" = "$$TOP_COLOR" ]; do SIDE_COLOR="$$(pick)"; done; \
+		sleep 0.02; printf "      $(CYAN)____________|$(RESET)\n"; \
+		sleep 0.02; printf "    $(CYAN)/$(RESET)%b           $(RESET)$(CYAN)/$(RESET)%b $(RESET)$(CYAN)|$(RESET)\n" "$$TOP_COLOR" "$$SIDE_COLOR"; \
+		sleep 0.02; printf "  $(CYAN)/$(RESET)%b           $(RESET)$(CYAN)/$(RESET)%b   $(RESET)$(CYAN)|$(RESET)\n" "$$TOP_COLOR" "$$SIDE_COLOR"; \
+		sleep 0.03; printf "$(CYAN)+---+---+---+$(RESET)%b     $(RESET)$(CYAN)|$(RESET)\n" "$$SIDE_COLOR"; \
+		printf "\033[s"; \
+		sleep 0.06; printf "$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b     $(RESET)$(CYAN)|$(RESET)\n" "$$(pick)" "$$(pick)" "$$(pick)" "$$SIDE_COLOR"; \
+		sleep 0.03; printf "$(CYAN)+---+---+---+$(RESET)%b     $(RESET)$(CYAN)|$(RESET)\n" "$$SIDE_COLOR"; \
+		sleep 0.06; printf "$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b     $(RESET)$(CYAN)|$(RESET)\n" "$$(pick)" "$$(pick)" "$$(pick)" "$$SIDE_COLOR"; \
+		sleep 0.03; printf "$(CYAN)+---+---+---+$(RESET)%b   $(RESET)$(CYAN)/$(RESET)\n" "$$SIDE_COLOR"; \
+		sleep 0.06; printf "$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b $(RESET)$(CYAN)/$(RESET)\n" "$$(pick)" "$$(pick)" "$$(pick)" "$$SIDE_COLOR"; \
+		sleep 0.03; printf "$(CYAN)+---+---+---+$(RESET)\n"; \
+		for _f in 1 2 3 4; do \
+			printf "\033[u"; \
+			printf "$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b     $(RESET)$(CYAN)|$(RESET)\n" "$$(pick)" "$$(pick)" "$$(pick)" "$$SIDE_COLOR"; \
+			printf "$(CYAN)+---+---+---+$(RESET)%b     $(RESET)$(CYAN)|$(RESET)\n" "$$SIDE_COLOR"; \
+			printf "$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b     $(RESET)$(CYAN)|$(RESET)\n" "$$(pick)" "$$(pick)" "$$(pick)" "$$SIDE_COLOR"; \
+			printf "$(CYAN)+---+---+---+$(RESET)%b   $(RESET)$(CYAN)/$(RESET)\n" "$$SIDE_COLOR"; \
+			printf "$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b $(RESET)$(CYAN)/$(RESET)\n" "$$(pick)" "$$(pick)" "$$(pick)" "$$SIDE_COLOR"; \
+			printf "$(CYAN)+---+---+---+$(RESET)\n"; \
+			sleep 0.1; \
+		done; \
+	'
+
+flash:
+	@if [ -t 1 ] && [ -n "$$TERM" ] && command -v clear >/dev/null 2>&1; then clear; fi
+	@printf "\n"
+	@printf "$(RED)████ $(RESET)  $(WHITE)█   █$(RESET)  $(BLUE)████ $(RESET)  $(ORANGE)█████$(RESET)  $(GREEN)█   █$(RESET)\n"
+	@printf "$(RED)█   █$(RESET)  $(WHITE)█   █$(RESET)  $(BLUE)█   █$(RESET)  $(ORANGE)  █  $(RESET)  $(GREEN)█  █ $(RESET)\n"
+	@printf "$(RED)████ $(RESET)  $(WHITE)█   █$(RESET)  $(BLUE)████ $(RESET)  $(ORANGE)  █  $(RESET)  $(GREEN)███  $(RESET)\n"
+	@printf "$(RED)█  █ $(RESET)  $(WHITE)█   █$(RESET)  $(BLUE)█   █$(RESET)  $(ORANGE)  █  $(RESET)  $(GREEN)█  █ $(RESET)\n"
+	@printf "$(RED)█   █$(RESET)  $(WHITE) ███ $(RESET)  $(BLUE)████ $(RESET)  $(ORANGE)█████$(RESET)  $(GREEN)█   █$(RESET)\n\n"
+	@bash -c '\
+		COLORS=("$(BG_RED)" "$(BG_GRN)" "$(BG_YEL)" "$(BG_BLU)" "$(BG_WHT)" "$(BG_ORG)"); \
+		pick() { echo "$${COLORS[$$RANDOM % 6]}"; }; \
+		TOP_COLOR="$$(pick)"; \
+		SIDE_COLOR="$$(pick)"; \
+		while [ "$$SIDE_COLOR" = "$$TOP_COLOR" ]; do SIDE_COLOR="$$(pick)"; done; \
+		printf "      $(CYAN)____________|$(RESET)\n"; \
+		printf "    $(CYAN)/$(RESET)%b           $(RESET)$(CYAN)/$(RESET)%b $(RESET)$(CYAN)|$(RESET)\n" "$$TOP_COLOR" "$$SIDE_COLOR"; \
+		printf "  $(CYAN)/$(RESET)%b           $(RESET)$(CYAN)/$(RESET)%b   $(RESET)$(CYAN)|$(RESET)\n" "$$TOP_COLOR" "$$SIDE_COLOR"; \
+		printf "$(CYAN)+---+---+---+$(RESET)%b     $(RESET)$(CYAN)|$(RESET)\n" "$$SIDE_COLOR"; \
+		printf "\033[s"; \
+		printf "$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b     $(RESET)$(CYAN)|$(RESET)\n" "$$(pick)" "$$(pick)" "$$(pick)" "$$SIDE_COLOR"; \
+		printf "$(CYAN)+---+---+---+$(RESET)%b     $(RESET)$(CYAN)|$(RESET)\n" "$$SIDE_COLOR"; \
+		printf "$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b     $(RESET)$(CYAN)|$(RESET)\n" "$$(pick)" "$$(pick)" "$$(pick)" "$$SIDE_COLOR"; \
+		printf "$(CYAN)+---+---+---+$(RESET)%b   $(RESET)$(CYAN)/$(RESET)\n" "$$SIDE_COLOR"; \
+		printf "$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b $(RESET)$(CYAN)/$(RESET)\n" "$$(pick)" "$$(pick)" "$$(pick)" "$$SIDE_COLOR"; \
+		printf "$(CYAN)+---+---+---+$(RESET)\n"; \
+		printf "$(YELLOW)  [flashing for 30s — Ctrl+C to stop early]$(RESET)\n"; \
+		SECONDS=0; \
+		while [ $$SECONDS -lt 30 ]; do \
+			printf "\033[u"; \
+			printf "$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b     $(RESET)$(CYAN)|$(RESET)\n" "$$(pick)" "$$(pick)" "$$(pick)" "$$SIDE_COLOR"; \
+			printf "$(CYAN)+---+---+---+$(RESET)%b     $(RESET)$(CYAN)|$(RESET)\n" "$$SIDE_COLOR"; \
+			printf "$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b     $(RESET)$(CYAN)|$(RESET)\n" "$$(pick)" "$$(pick)" "$$(pick)" "$$SIDE_COLOR"; \
+			printf "$(CYAN)+---+---+---+$(RESET)%b   $(RESET)$(CYAN)/$(RESET)\n" "$$SIDE_COLOR"; \
+			printf "$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b $(RESET)$(CYAN)/$(RESET)\n" "$$(pick)" "$$(pick)" "$$(pick)" "$$SIDE_COLOR"; \
+			printf "$(CYAN)+---+---+---+$(RESET)\n"; \
+			sleep 0.1; \
+		done; \
+		printf "\n"; \
+	'
 
 # ==========================
 # Clean
@@ -378,9 +455,10 @@ help:
 	@printf "  $(GREEN)make cloc$(RESET)             — count lines of code per file\n"
 	@printf "  $(GREEN)make list$(RESET)             — list the source tree (mandatory + render)\n"
 	@printf "  $(GREEN)make push$(RESET)             — commit and push to GitHub (pass MSG=\"...\")\n"
+	@printf "  $(GREEN)make flash$(RESET)            — 30s flashing cube showcase (Ctrl+C to stop early)\n"
 	@printf "  $(GREEN)make help$(RESET)             — show this message\n"
 	@printf "\n$(CYAN)  Usage:$(RESET)\n"
 	@printf "  $(YELLOW)./rubik \"R2 U F' L2 D B R U2 L' F2\"$(RESET)   (mandatory)\n"
 	@printf "  $(YELLOW)./rubik_bonus \"...\"$(RESET)                    (3D bonus, same scramble syntax)\n\n"
 
-.PHONY: all bonus test clean fclean fclean-raylib re valgrind debug run check env cloc list banner push help
+.PHONY: all bonus test clean fclean fclean-raylib re valgrind debug run check env cloc list banner flash push help
