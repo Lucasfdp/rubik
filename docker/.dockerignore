@@ -1,0 +1,6 @@
+# The build context is the docker/ directory. Keep it to just what the image needs.
+*
+!check-env.sh
+!fish/
+!fish/config.fish
+!valgrind.supp

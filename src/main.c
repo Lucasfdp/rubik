@@ -1,5 +1,12 @@
 #include "rubik.h"
 
+/// @brief Entry point: reads a scramble from argv[1] and parses it.
+///
+/// Usage: rubik "<scramble>", for example: rubik "R2 D' B'"
+/// Currently it only parses and prints how many moves it found; errors go
+/// to stderr with a message from parse_status_message().
+///
+/// @return 0 on success, 1 on wrong argument count or a parse error.
 int	main(int ac, char const *av[])
 {
 	t_move			moves[MAX_MOVES];

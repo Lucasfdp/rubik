@@ -1,34 +1,25 @@
-/* ========================================================================
- * cube.h — the cubie model: t_cube, and the 26 movable-piece identities
- *
- * This is the authoritative model (docs/en/04-architecture.md, cube/cubie.c)
- * — the one solve/ actually reasons about. cube/facelet.c will convert to
- * and from the 54-sticker view for I/O and the renderer; nothing in solve/
- * should ever touch a facelet string directly.
- *
- * Naming and slot order here are NOT a free choice — they match Kociemba's
- * own convention exactly (docs/en/02a-cube-notation.md), and every
- * permutation array, move table, and test fixture in this project assumes
- * it. Write it into DECISIONS.md and never change it (05-roadmap-mandatory,
- * Sprint 0) — if you think you need to, re-read that file instead.
- * ======================================================================== */
-
 #ifndef CUBE_H
 # define CUBE_H
 
 # include <stdint.h>
 # include <stdbool.h>
 
+/// Number of corner pieces on a 3x3x3 cube.
 # define CORNER_COUNT 8
+
+/// Number of edge pieces on a 3x3x3 cube.
 # define EDGE_COUNT   12
 
-/* --------------------------------------------------------------------
- * Corner identity — which physical piece, not which slot. corner_perm[]
- * below is indexed BY slot and stores one of these as its VALUE:
- *   corner_perm[CORNER_UFL] == CORNER_URF
- * means "the URF piece currently sits in the UFL slot." On a solved cube,
- * corner_perm[i] == i for every i.
- * -------------------------------------------------------------------- */
+/// Identity of each of the 8 corner pieces (which piece, not which slot).
+///
+/// Names are the three faces meeting at the corner: URF is the corner
+/// between Up, Right and Front. Order and names follow Kociemba's
+/// convention (docs/en/02a-cube-notation.md) and must never change: every
+/// move table and test fixture depends on them.
+///
+/// t_cube.corner_perm is indexed BY SLOT and stores one of these as its
+/// VALUE. corner_perm[CORNER_UFL] == CORNER_URF means "the URF piece
+/// currently sits in the UFL slot". On a solved cube, corner_perm[i] == i.
 typedef enum e_corner
 {
 	CORNER_URF,
@@ -41,7 +32,10 @@ typedef enum e_corner
 	CORNER_DRB
 }	t_corner;
 
-/* Same idea, for the 12 edges. */
+/// Identity of each of the 12 edge pieces (which piece, not which slot).
+///
+/// Same idea as t_corner. Names are the two faces the edge touches: UR is
+/// the Up-Right edge. Order follows Kociemba's convention; do not reorder.
 typedef enum e_edge
 {
 	EDGE_UR,
@@ -58,20 +52,18 @@ typedef enum e_edge
 	EDGE_BR
 }	t_edge;
 
-/* --------------------------------------------------------------------
- * The 18 legal moves: 6 faces x {CW, 180, CCW}. Kept as ONE flat enum
- * (rather than a {face, turn} pair) because coord/movetable.c will index
- * straight into move tables with it: table[coord][move]. Face order is
- * U R F D L B — same order as the facelet string in 02a-cube-notation.md,
- * on purpose, so the two are easy to cross-check by eye.
- *
- *   MOVE_x1 = 90 degrees clockwise   (notation: "R")
- *   MOVE_x2 = 180 degrees            (notation: "R2")
- *   MOVE_x3 = 90 degrees counter-cw  (notation: "R'")
- *
- * parse/notation.c is what rejects M, E, S, x, y, z — this enum simply has
- * no slot for them, which is the structural half of that rule.
- * -------------------------------------------------------------------- */
+/// The 18 legal moves: 6 faces x {clockwise, 180, counter-clockwise}.
+///
+/// The suffix says the turn: 1 = 90 deg clockwise ("R"), 2 = 180 deg
+/// ("R2"), 3 = 90 deg counter-clockwise ("R'"). Faces are ordered
+/// U R F D L B, so for any move: move / 3 is the face index and
+/// move % 3 is the turn (0, 1, 2).
+///
+/// Kept as ONE flat enum (not a {face, turn} pair) so later code can index
+/// move tables directly: table[coord][move]. There is no value for
+/// M, E, S, x, y, z, so they cannot be represented at all.
+///
+/// MOVE_COUNT is not a move, it is how many there are (18).
 typedef enum e_move
 {
 	MOVE_U1,
@@ -95,16 +87,19 @@ typedef enum e_move
 	MOVE_COUNT
 }	t_move;
 
-/* --------------------------------------------------------------------
- * The cubie model itself. Centres are deliberately absent — they never
- * move relative to each other, so they carry no information (GLOSSARY.md,
- * "Cubie").
- *
- * corner_orient[slot] in {0, 1, 2} — see 02a-cube-notation.md §4 (twist).
- *   Sum of all 8, mod 3, is always 0 — assert it in every test.
- * edge_orient[slot]   in {0, 1}    — see 02a-cube-notation.md §5 (flip).
- *   Sum of all 12, mod 2, is always 0 — assert that too.
- * -------------------------------------------------------------------- */
+/// Cubie model of a 3x3x3 cube: which piece sits in each slot, and how it
+/// is turned. This is the authoritative representation the solver uses.
+///
+/// Centres are left out on purpose: they never move relative to each
+/// other, so they carry no information.
+///
+/// - corner_perm[slot]:   corner piece in that slot (see t_corner).
+/// - corner_orient[slot]: twist 0, 1 or 2. The 8 values always sum to
+///                        0 mod 3.
+/// - edge_perm[slot]:     edge piece in that slot (see t_edge).
+/// - edge_orient[slot]:   flip 0 or 1. The 12 values always sum to 0 mod 2.
+///
+/// See docs/en/02a-cube-notation.md, section 4 (twist) and 5 (flip).
 typedef struct s_cube
 {
 	t_corner	corner_perm[CORNER_COUNT];
@@ -113,26 +108,46 @@ typedef struct s_cube
 	uint8_t		edge_orient[EDGE_COUNT];
 }	t_cube;
 
-/* The fixed starting point: corner_perm[i] == i, edge_perm[i] == i, every
- * orientation 0. Defined once in cube/cubie.c — build every test and every
- * "apply this scramble" path off a copy of this, never a hand-rolled zeroed
- * struct (an easy way to end up with something that only looks valid). */
+/// The solved cube: every piece in its own slot, every orientation 0.
+///
+/// Defined once in cube/cubie.c. Build tests and scrambles from a copy of
+/// this, never from a zeroed struct: zeroing puts the URF corner in every
+/// slot, which looks valid but is not a cube.
 extern const t_cube	SOLVED_CUBE;
 
-/* --- cube/cubie.c — pure data-layer helpers, no move logic --------------
- * Implemented already: straightforward comparisons/sums over the arrays
- * above, nothing cube-solving-specific. */
+/// @brief True if both cubes have exactly the same state.
 bool	cube_equal(const t_cube *a, const t_cube *b);
-bool	cube_is_solved(const t_cube *cube);
-int		cube_corner_twist_sum(const t_cube *cube);	/* the mod-3 invariant */
-int		cube_edge_flip_sum(const t_cube *cube);		/* the mod-2 invariant */
-bool	cube_is_valid(const t_cube *cube);				/* both invariants + permutation parity */
 
-/* --- cube/moves.c — Sprint 0's actual pairing task ----------------------
- * apply_move() is where the 18 move permutation tables live. Declared
- * here, deliberately NOT implemented: this is the part of Sprint 0
- * (05-roadmap-mandatory.md) meant to be worked out on a whiteboard
- * together, not generated for you. */
+/// @brief True if the cube equals SOLVED_CUBE.
+bool	cube_is_solved(const t_cube *cube);
+
+/// @brief Sum of all corner twists, mod 3 (0 on a valid cube).
+int		cube_corner_twist_sum(const t_cube *cube);
+
+/// @brief Sum of all edge flips, mod 2 (0 on a valid cube).
+int		cube_edge_flip_sum(const t_cube *cube);
+
+/// @brief True if the cube can be reached by turning a real cube.
+bool	cube_is_valid(const t_cube *cube);
+
+/// Move table for one face: what ONE clockwise quarter turn of it does.
+///
+/// - corners[] / edges[]: the 4 slots that cycle, in cycle order. The
+///   piece in slot [i] moves to slot [i + 1], and [3] wraps back to [0].
+/// - corner_twist[] / edge_flip[]: amount added to the orientation of the
+///   piece that ARRIVES in slot [i] (twist mod 3 for corners, flip mod 2
+///   for edges).
+///
+/// The 6 actual tables (one per face) live in cube/moves.c.
+typedef struct s_face_table
+{
+	t_corner	corners[4];
+	int			corner_twist[4];
+	t_edge		edges[4];
+	int			edge_flip[4];
+}	t_face_table;
+
+/// @brief Applies one of the 18 moves to a cube, in place.
 void	apply_move(t_cube *cube, t_move move);
 
 #endif

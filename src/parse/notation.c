@@ -1,18 +1,24 @@
-/* ========================================================================
- * src/parse/notation.c — argv string -> t_move[]
- * ======================================================================== */
-
 #include "rubik.h"
 
-/* Face letters in the exact order t_move's enum uses them: U R F D L B.
- * That means (strchr(FACES, token[0]) - FACES) gives the face's index
- * 0-5 directly, and index * 3 lands on that face's first move (the CW
- * one, since each face's three moves are laid out CW/180/CCW in a row). */
+/// Face letters in the same order as t_move: U R F D L B.
+///
+/// strchr(FACES, letter) - FACES gives the face index 0-5, and
+/// index * 3 is that face's first move (the clockwise one), because each
+/// face's three moves sit together as clockwise / 180 / counter-clockwise.
 static const char	FACES[] = "URFDLB";
 
-/* Turns one already-length-checked token ("R", "R2", "R'") into a t_move.
- * Only the modifier is decided here -- the face letter is resolved via
- * FACES above. Anything other than no-modifier / "2" / "'" is rejected. */
+/// @brief Converts one token ("R", "R2" or "R'") into a t_move.
+///
+/// The face letter is looked up in FACES. The modifier then picks the
+/// offset inside that face's group of three: none = 0 (clockwise),
+/// "2" = 1 (180), "'" = 2 (counter-clockwise).
+///
+/// Precondition: token is non-empty and at most 2 chars long. The caller
+/// (parse_notation) checks the length before calling.
+///
+/// @param token NUL-terminated token.
+/// @param out   Written only when PARSE_OK is returned.
+/// @return PARSE_OK, PARSE_UNKNOWN_FACE or PARSE_BAD_MODIFIER.
 static t_parse_status	token_to_move(const char *token, t_move *out)
 {
 	const char	*face_ptr;
@@ -35,15 +41,22 @@ static t_parse_status	token_to_move(const char *token, t_move *out)
 	return (PARSE_OK);
 }
 
-/* input: the raw argv string, e.g. "R2 D' B'" -- never modified.
- * moves: caller-owned array, at least MAX_MOVES t_move slots.
- * count: set to how many moves were parsed, only when PARSE_OK is returned.
- *
- * input is copied into a local stack buffer before tokenizing, because
- * strtok_r writes '\0' into the string it walks. Leaving input untouched
- * matters: main.c will want to echo the original scramble in an error
- * message, and mutating argv out from under the caller is the kind of
- * thing that comes back to bite you later in the project. */
+/// @brief Parses a scramble string like "R2 D' B'" into a move list.
+///
+/// Tokens are separated by spaces or tabs. The input is copied into a
+/// local buffer first, because strtok_r writes '\0' into the string it
+/// walks; this way the caller's string (usually argv) is never modified.
+/// The buffer size also acts as an input-length guard (see MAX_MOVES).
+///
+/// Checks, in order: NULL/empty input, input too long, then for each
+/// token: too many moves, token longer than 2 chars, valid face and
+/// modifier. Input with only whitespace gives PARSE_EMPTY.
+///
+/// @param input Raw scramble string. Never modified.
+/// @param moves Caller-owned array with room for MAX_MOVES moves. May be
+///              partly filled when an error is returned.
+/// @param count Number of moves parsed. Only meaningful on PARSE_OK.
+/// @return PARSE_OK, or the first error found.
 t_parse_status	parse_notation(const char *input, t_move *moves, size_t *count)
 {
 	char			buf[MAX_MOVES * 3];
@@ -75,18 +88,29 @@ t_parse_status	parse_notation(const char *input, t_move *moves, size_t *count)
 	return (PARSE_OK);
 }
 
-/* One message per t_parse_status, indexed by the enum value itself --
- * see the explanation of why this is safe and stays in sync by
- * construction, alongside the rest of this function's write-up. */
+/// @brief Returns a human-readable message for a status code.
+///
+/// The messages[] table uses designated initializers ([PARSE_OK] = "ok"),
+/// so each string lands at the index of its enum value no matter what
+/// order it is written in.
+///
+/// Note: when you add a value to t_parse_status you must add its message
+/// here too. A missing entry is NOT caught by the compiler, and looking
+/// it up would read past the end of the table.
+///
+/// @param status A valid t_parse_status value.
+/// @return Static string, never NULL, never to be freed.
 const char	*parse_status_message(t_parse_status status)
 {
+	/// Indexed by t_parse_status value.
 	static const char	*const messages[] = {
 		[PARSE_OK] = "ok",
 		[PARSE_EMPTY] = "empty scramble",
 		[PARSE_UNKNOWN_FACE] = "unknown face letter (expected one of U R F D L B)",
 		[PARSE_BAD_MODIFIER] = "bad move modifier (expected ' or 2)",
 		[PARSE_TOKEN_TOO_LONG] = "move token too long",
-		[PARSE_TOO_MANY_MOVES] = "too many moves"
+		[PARSE_TOO_MANY_MOVES] = "too many moves",
+		[PARSE_INVALID_CUBE] = "physically impossible cube (bad parity/orientation)"
 	};
 	return (messages[status]);
 }

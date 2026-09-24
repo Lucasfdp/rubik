@@ -1,0 +1,15 @@
+# Suppressions for rubik.
+# Keep this file EMPTY of real suppressions unless you have a proven reason —
+# a leak you suppressed is a leak you still have at defense.
+#
+# Only the mandatory binary is graded under valgrind, and it links no graphics
+# code, so nothing from Mesa/X11 should ever need suppressing here.
+#
+# Template, in case you ever need one:
+#
+# {
+#    name_of_suppression
+#    Memcheck:Leak
+#    fun:malloc
+#    fun:some_library_function
+# }
