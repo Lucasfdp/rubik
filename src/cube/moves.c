@@ -151,17 +151,17 @@ static void	rotate_edges(t_cube *cube, const t_edge slots[4],
 /// @param move Any value below MOVE_COUNT.
 void	apply_move(t_cube *cube, t_move move)
 {
-	const t_face_table	*table;
+	const t_face_table	*face;
 	int					turns;
 	int					i;
 
-	table = &FACE_TABLES[move / 3];
+	face = &FACE_TABLES[move / 3];
 	turns = move % 3 + 1;
 	i = 0;
 	while (i < turns)
 	{
-		rotate_corners(cube, table->corners, table->corner_twist);
-		rotate_edges(cube, table->edges, table->edge_flip);
+		rotate_corners(cube, face->corners, face->corner_twist);
+		rotate_edges(cube, face->edges, face->edge_flip);
 		i++;
 	}
 }
