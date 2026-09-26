@@ -21,7 +21,7 @@ typedef enum e_parse_status
 {
 	/// Success.
 	PARSE_OK,
-	/// Input was NULL, empty, or contained no moves (only spaces/tabs).
+	/// Input was NULL, empty, or contained no moves (only whitespace).
 	PARSE_EMPTY,
 	/// A token starts with something other than U R F D L B (lowercase,
 	/// M, E, S, x, y, z are all rejected).

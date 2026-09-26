@@ -23,12 +23,12 @@
 
 NAME		:=	rubik
 NAME_BONUS	:=	rubik_bonus
-TESTS		:=	test_moves
-# ^ Sprint 0 (05-roadmap-mandatory.md) is the only module that exists yet:
-#   t_cube + the 18 move tables + apply_move(). test_moves.c is that sprint's
-#   test harness (4x any move = identity, (R U R' U')x6 = identity, scramble
-#   then its exact inverse = identity). Add one TESTS entry + one *_SRCS/*_OBJS
-#   pair below per module as Sprint 1+ lands — same pattern, not a rewrite.
+TESTS		:=	test_moves test_cubie test_parse
+# ^ One binary per module, all built from tests/. test_moves / test_cubie /
+#   test_parse are C unit tests; tests/test_cli.sh is the end-to-end check on
+#   ./rubik itself (exit codes, messages, stdout). `make test` runs all of
+#   them. Add one TESTS entry + one *_SRCS/*_OBJS pair below per new module
+#   (coord, solve, ...) — same pattern, not a rewrite.
 
 # ==========================
 # Compiler detection
@@ -85,13 +85,23 @@ RENDER_OBJS	:=	$(RENDER_SRCS:%.c=$(OBJ_DIR)/%.o)
 MV_SRCS		:=	$(TEST_DIR)/test_moves.c $(SRC_DIR)/cube/cubie.c $(SRC_DIR)/cube/moves.c
 MV_OBJS		:=	$(MV_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-ALL_OBJS	:=	$(sort $(OBJS) $(RENDER_OBJS) $(MV_OBJS))
+CB_SRCS		:=	$(TEST_DIR)/test_cubie.c $(SRC_DIR)/cube/cubie.c $(SRC_DIR)/cube/moves.c
+CB_OBJS		:=	$(CB_SRCS:%.c=$(OBJ_DIR)/%.o)
+
+PR_SRCS		:=	$(TEST_DIR)/test_parse.c $(SRC_DIR)/parse/notation.c \
+				$(SRC_DIR)/parse/validate.c $(SRC_DIR)/cube/cubie.c \
+				$(SRC_DIR)/cube/moves.c
+PR_OBJS		:=	$(PR_SRCS:%.c=$(OBJ_DIR)/%.o)
+
+ALL_OBJS	:=	$(sort $(OBJS) $(RENDER_OBJS) $(MV_OBJS) $(CB_OBJS) $(PR_OBJS))
 
 # Progress-bar denominator: `make bonus` also compiles src/render/, `make`
 # alone never does — count accordingly so the bar actually reaches 100%
 # either way instead of stalling or overshooting.
 ifneq ($(filter bonus,$(MAKECMDGOALS)),)
 TOTAL		:=	$(words $(SRCS) $(RENDER_SRCS))
+else ifneq ($(filter test,$(MAKECMDGOALS)),)
+TOTAL		:=	$(words $(sort $(OBJS) $(MV_OBJS) $(CB_OBJS) $(PR_OBJS)))
 else
 TOTAL		:=	$(words $(SRCS))
 endif
@@ -192,13 +202,21 @@ $(OBJ_DIR)/%.o: %.c
 # ==========================
 # Unit tests (C)
 # ==========================
-test: $(TESTS)
-	@printf "$(YELLOW)$(BOLD)\n  Running unit tests...$(RESET)\n\n"
+test: $(NAME) $(TESTS)
+	@printf "$(YELLOW)$(BOLD)\n\n  Running unit tests...$(RESET)\n\n"
 	@for t in $(TESTS); do printf "$(CYAN)  == %s ==$(RESET)\n" "$$t"; ./$$t || exit 1; done
+	@printf "$(CYAN)  == test_cli.sh ==$(RESET)\n"
+	@bash $(TEST_DIR)/test_cli.sh ./$(NAME) || exit 1
 	@printf "$(GREEN)$(BOLD)\n  [All tests passed]$(RESET)\n\n"
 
 test_moves: $(MV_OBJS)
 	@$(CC) $(CFLAGS) $(MV_OBJS) $(LDLIBS) -o $@
+
+test_cubie: $(CB_OBJS)
+	@$(CC) $(CFLAGS) $(CB_OBJS) $(LDLIBS) -o $@
+
+test_parse: $(PR_OBJS)
+	@$(CC) $(CFLAGS) $(PR_OBJS) $(LDLIBS) -o $@
 
 # ==========================
 # Valgrind

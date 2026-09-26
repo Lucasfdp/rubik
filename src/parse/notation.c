@@ -7,6 +7,12 @@
 /// face's three moves sit together as clockwise / 180 / counter-clockwise.
 static const char	FACES[] = "URFDLB";
 
+/// Characters that separate two moves: space, tab, and the line-ending /
+/// vertical whitespace characters (\n \r \v \f). The newline ones matter
+/// when a scramble comes from a file or $(cat ...) instead of typed argv: a
+/// trailing "\n" or "\r\n" must not turn "U" into an unknown token "U\n".
+static const char	SEPARATORS[] = " \t\n\r\v\f";
+
 /// @brief Converts one token ("R", "R2" or "R'") into a t_move.
 ///
 /// The face letter is looked up in FACES. The modifier then picks the
@@ -43,19 +49,23 @@ static t_parse_status	token_to_move(const char *token, t_move *out)
 
 /// @brief Parses a scramble string like "R2 D' B'" into a move list.
 ///
-/// Tokens are separated by spaces or tabs. The input is copied into a
-/// local buffer first, because strtok_r writes '\0' into the string it
-/// walks; this way the caller's string (usually argv) is never modified.
+/// Tokens are separated by any whitespace (see SEPARATORS). The input is
+/// copied into a local buffer first, because strtok_r writes '\0' into the
+/// string it walks; this way the caller's string (usually argv) is never
+/// modified.
 /// The buffer size also acts as an input-length guard (see MAX_MOVES).
 ///
 /// Checks, in order: NULL/empty input, input too long, then for each
 /// token: too many moves, token longer than 2 chars, valid face and
 /// modifier. Input with only whitespace gives PARSE_EMPTY.
 ///
+/// *count is set to 0 first thing, so it is defined on every return path
+/// (on an error after some moves were read it holds how many were read).
+///
 /// @param input Raw scramble string. Never modified.
 /// @param moves Caller-owned array with room for MAX_MOVES moves. May be
 ///              partly filled when an error is returned.
-/// @param count Number of moves parsed. Only meaningful on PARSE_OK.
+/// @param count Number of moves parsed. Only trust it on PARSE_OK.
 /// @return PARSE_OK, or the first error found.
 t_parse_status	parse_notation(const char *input, t_move *moves, size_t *count)
 {
@@ -64,13 +74,13 @@ t_parse_status	parse_notation(const char *input, t_move *moves, size_t *count)
 	char			*saveptr;
 	t_parse_status	status;
 
+	*count = 0;
 	if (!input || !input[0])
 		return (PARSE_EMPTY);
 	if (strlen(input) >= sizeof(buf))
 		return (PARSE_TOO_MANY_MOVES);
 	snprintf(buf, sizeof(buf), "%s", input);
-	*count = 0;
-	token = strtok_r(buf, " \t", &saveptr);
+	token = strtok_r(buf, SEPARATORS, &saveptr);
 	while (token)
 	{
 		if (*count >= MAX_MOVES)
@@ -81,7 +91,7 @@ t_parse_status	parse_notation(const char *input, t_move *moves, size_t *count)
 		if (status != PARSE_OK)
 			return (status);
 		(*count)++;
-		token = strtok_r(NULL, " \t", &saveptr);
+		token = strtok_r(NULL, SEPARATORS, &saveptr);
 	}
 	if (*count == 0)
 		return (PARSE_EMPTY);

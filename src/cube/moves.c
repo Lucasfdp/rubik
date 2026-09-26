@@ -165,3 +165,23 @@ void	apply_move(t_cube *cube, t_move move)
 		i++;
 	}
 }
+
+/// @brief Applies a whole move sequence to a cube, in place.
+///
+/// Plain loop over apply_move(), in order: moves[0] is applied first.
+/// count == 0 leaves the cube untouched.
+///
+/// @param cube  Modified in place.
+/// @param moves Array of count valid moves (each below MOVE_COUNT).
+/// @param count Number of moves in the array.
+void	cube_apply_moves(t_cube *cube, const t_move *moves, size_t count)
+{
+	size_t	i;
+
+	i = 0;
+	while (i < count)
+	{
+		apply_move(cube, moves[i]);
+		i++;
+	}
+}

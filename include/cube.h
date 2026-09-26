@@ -1,6 +1,7 @@
 #ifndef CUBE_H
 # define CUBE_H
 
+# include <stddef.h>
 # include <stdint.h>
 # include <stdbool.h>
 
@@ -149,5 +150,12 @@ typedef struct s_face_table
 
 /// @brief Applies one of the 18 moves to a cube, in place.
 void	apply_move(t_cube *cube, t_move move);
+
+/// @brief Applies a whole move sequence to a cube, in place, first to last.
+///
+/// This is how main turns a parsed scramble into a cube state: start from
+/// a copy of SOLVED_CUBE, call this, then throw the move list away and hand
+/// only the resulting cube to the solver (the anti-cheat rule).
+void	cube_apply_moves(t_cube *cube, const t_move *moves, size_t count);
 
 #endif
