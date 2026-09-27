@@ -9,6 +9,8 @@
 # include <string.h>
 
 # include "cube.h"
+# include "coord.h"
+# include "movetable.h"
 # include "parse.h"
 
 #endif

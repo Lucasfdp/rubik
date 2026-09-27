@@ -93,3 +93,5 @@ Each edge has 2 facelets, one of which is its reference sticker. The definition 
 Ties directly to `04-architecture.md`'s module layout: `cube/cubie.c` is where corner/edge permutation + these orientation values live as the authoritative model; `cube/facelet.c` is the conversion layer between that and the 54-character string above, needed by both input parsing and the renderer. If a test ever disagrees with a reference implementation, the first thing to check is whether both sides are using this same facelet order and the same `U`/`F` reference frame — a silent mismatch there produces a cube that *looks* subtly wrong in every test without any single obviously-broken function.
 
 ![alt text](image.png)
+
+![alt text](image-1.png)

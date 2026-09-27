@@ -23,9 +23,9 @@
 
 NAME		:=	rubik
 NAME_BONUS	:=	rubik_bonus
-TESTS		:=	test_moves test_cubie test_parse
+TESTS		:=	test_moves test_cubie test_parse test_coord test_movetable
 # ^ One binary per module, all built from tests/. test_moves / test_cubie /
-#   test_parse are C unit tests; tests/test_cli.sh is the end-to-end check on
+#   test_parse / test_coord / test_movetable are C unit tests; tests/test_cli.sh is the end-to-end check on
 #   ./rubik itself (exit codes, messages, stdout). `make test` runs all of
 #   them. Add one TESTS entry + one *_SRCS/*_OBJS pair below per new module
 #   (coord, solve, ...) — same pattern, not a rewrite.
@@ -56,7 +56,7 @@ Install one with `sudo apt install build-essential` (Debian/Ubuntu) or \
 `xcode-select --install` (macOS), or point this at yours: make CC=/path/to/gcc)
 endif
 
-CFLAGS		:=	-Wall -Wextra -Werror -MMD -MP
+CFLAGS		:=	-Wall -Wextra -Werror -MMD -MP -O2
 CPPFLAGS	:=	-Iinclude
 LDLIBS		:=
 # No -lm here: the mandatory build is permutation/index arithmetic (moves,
@@ -93,7 +93,18 @@ PR_SRCS		:=	$(TEST_DIR)/test_parse.c $(SRC_DIR)/parse/notation.c \
 				$(SRC_DIR)/cube/moves.c
 PR_OBJS		:=	$(PR_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-ALL_OBJS	:=	$(sort $(OBJS) $(RENDER_OBJS) $(MV_OBJS) $(CB_OBJS) $(PR_OBJS))
+CO_SRCS		:=	$(TEST_DIR)/test_coord.c $(SRC_DIR)/coord/encode.c \
+				$(SRC_DIR)/coord/decode.c $(SRC_DIR)/coord/tables.c \
+				$(SRC_DIR)/cube/cubie.c $(SRC_DIR)/cube/moves.c
+CO_OBJS		:=	$(CO_SRCS:%.c=$(OBJ_DIR)/%.o)
+
+MT_SRCS		:=	$(TEST_DIR)/test_movetable.c $(SRC_DIR)/coord/movetable.c \
+				$(SRC_DIR)/coord/encode.c $(SRC_DIR)/coord/decode.c \
+				$(SRC_DIR)/coord/tables.c $(SRC_DIR)/cube/cubie.c \
+				$(SRC_DIR)/cube/moves.c
+MT_OBJS		:=	$(MT_SRCS:%.c=$(OBJ_DIR)/%.o)
+
+ALL_OBJS	:=	$(sort $(OBJS) $(RENDER_OBJS) $(MV_OBJS) $(CB_OBJS) $(PR_OBJS) $(CO_OBJS) $(MT_OBJS))
 
 # Progress-bar denominator: `make bonus` also compiles src/render/, `make`
 # alone never does — count accordingly so the bar actually reaches 100%
@@ -101,7 +112,7 @@ ALL_OBJS	:=	$(sort $(OBJS) $(RENDER_OBJS) $(MV_OBJS) $(CB_OBJS) $(PR_OBJS))
 ifneq ($(filter bonus,$(MAKECMDGOALS)),)
 TOTAL		:=	$(words $(SRCS) $(RENDER_SRCS))
 else ifneq ($(filter test,$(MAKECMDGOALS)),)
-TOTAL		:=	$(words $(sort $(OBJS) $(MV_OBJS) $(CB_OBJS) $(PR_OBJS)))
+TOTAL		:=	$(words $(sort $(OBJS) $(MV_OBJS) $(CB_OBJS) $(PR_OBJS) $(CO_OBJS) $(MT_OBJS)))
 else
 TOTAL		:=	$(words $(SRCS))
 endif
@@ -218,6 +229,12 @@ test_cubie: $(CB_OBJS)
 test_parse: $(PR_OBJS)
 	@$(CC) $(CFLAGS) $(PR_OBJS) $(LDLIBS) -o $@
 
+test_coord: $(CO_OBJS)
+	@$(CC) $(CFLAGS) $(CO_OBJS) $(LDLIBS) -o $@
+
+test_movetable: $(MT_OBJS)
+	@$(CC) $(CFLAGS) $(MT_OBJS) $(LDLIBS) -o $@
+
 # ==========================
 # Valgrind
 # ==========================
@@ -239,7 +256,7 @@ valgrind: $(NAME)
 # ==========================
 # Debug build
 # ==========================
-debug: CFLAGS += -g3 -fsanitize=address
+debug: CFLAGS += -g3 -fsanitize=address -00
 debug: re
 	@printf "$(RED)$(BOLD)  [Debug build with ASan ready]$(RESET)\n\n"
 
