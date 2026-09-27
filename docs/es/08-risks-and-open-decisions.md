@@ -14,6 +14,7 @@
 | La deriva de coma flotante en la animación 3D desincroniza el render del estado lógico | Media | Aplicar al completar + reiniciar la transformación de la animación a la identidad después de cada movimiento; el test de deriva de 1.000 movimientos del Sprint 6 detecta esto. |
 | La generación de tablas al arrancar empuja el tiempo total cerca del límite de 3s | Baja | Las tablas pesan menos de 10 MB y se generan por BFS en bastante menos de un segundo — medidlo directamente en el Sprint 3 de todas formas, no lo asumáis sin más. |
 | Uno de los dos no puede defender el módulo del otro | Media | El ensayo de intercambio del Sprint 8; el cruce deliberado ya integrado en los Sprints 1–2 y 6. |
+| La entrada de ratón para órbita de cámara y giro de capa se pelean entre sí; el backlog de acabado visual consume tiempo pensado para el núcleo de algoritmo/render | Media | Ver `03a-3d-experience-and-interaction.md` §7 para las mitigaciones concretas (convención de separación por botón decidida en el Sprint 5; el backlog MoSCoW como línea de corte pre-acordada). |
 
 ## Decisiones abiertas para los dos
 
@@ -22,3 +23,6 @@
 3. **¿Quién es Dev A y quién Dev B?** El track A se inclina más hacia I/O y la fontanería de corrección; el track B se inclina más hacia combinatoria y búsqueda. Intercambiad roles entre el Sprint 2 y el Sprint 6, para que ninguno de los dos haga el mismo tipo de trabajo dos veces.
 4. **¿Un binario con un flag `-v` para lo visual, o dos binarios separados?** Recomendación: dos — esto protege el build obligatorio de cualquier rotura por el lado del bonus (ver `04-architecture.md`).
 5. **¿Generar las tablas al arrancar, o cachearlas en disco?** Recomendación: al arrancar. Es lo bastante rápido como para quedar bien dentro del presupuesto de tiempo, y elimina una pregunta incómoda en la defensa sobre si las tablas en caché cuentan como trampa precalculada.
+6. **Separación por botón vs. tecla modificadora vs. regla de espacio vacío** para la entrada de ratón de órbita-de-cámara contra giro-de-capa (`03a-3d-experience-and-interaction.md` §3.3). Recomendación: separación por botón (arrastre izquierdo gira, arrastre derecho orbita).
+7. **¿Modo manual solo por teclado, o también giro por clic-y-arrastre de ratón?** (`03a-3d-experience-and-interaction.md` §3.1). Recomendación: teclado primero, sin condiciones; el arrastre de ratón es un objetivo adicional que solo se intenta una vez hechos los ítems "Must"/"Should" del MoSCoW.
+8. **¿El modo Práctica/Manual se enseña en la defensa?** (`03a-3d-experience-and-interaction.md` §9). Recomendación: decidirlo una vez exista y haya demostrado ser fiable — es un momento de demo fuerte si funciona bien, un riesgo si no.

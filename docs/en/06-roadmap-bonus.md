@@ -22,14 +22,16 @@ Together again, for the same reason as Sprint 0: this sets the shared contract f
 
 ## Sprint 7 — Named bonus items (~3 days)
 
-Pick from the subject's own bonus list. Ordered here worst-value-first-removed, i.e. do the highest-value items first:
+Pick from the subject's own bonus list, plus the interaction/polish backlog in `03a-3d-experience-and-interaction.md` §5. Ordered here worst-value-first-removed, i.e. do the highest-value items first — reordered from the original list so "usable like a real cube" (an explicit ask, not just an implicit nice-to-have) ships before the deeper algorithm work:
 
+0. **Playback transport (Mode B) + keyboard-driven manual mode (Mode C)** — see `03a-3d-experience-and-interaction.md` §§2-3. Cheap (~2 days combined), and it's what turns "plays back one demo" into "realtime, slower modes, and use it like a real cube," which is what was actually asked for. Do this before item 3 below.
 1. **Real-time animated solve** — the headline bonus item. Already done as of Sprint 6.
-2. **Integrated scramble generator**, with configurable length/count (e.g. `-g LENGTH`, `-n COUNT` flags). Cheap, explicitly named in the subject's bonus list, and it also doubles as the engine for your own benchmark harness from Sprint 3.
+2. **Integrated scramble generator**, with configurable length/count (e.g. `-g LENGTH`, `-n COUNT` flags). Cheap, explicitly named in the subject's bonus list, and it also doubles as the engine for your own benchmark harness from Sprint 3, and as the scramble button in Mode C.
 3. **Multi-algorithm selection** (see `02-algorithms.md` §3.E) — add Thistlethwaite as a second algorithm and compare/print both. Dev A takes the algorithm implementation, Dev B takes the comparison UI.
 4. **"Humanly understandable" substeps** — annotate the printed solution with phase labels, e.g. `[Phase 1: orient everything] R U2 F' ... [Phase 2: finish in G1] U D2 R2 ...`. Nearly free with Kociemba, since the phase boundary is already known internally. This lands very well at defence.
-5. **2×2×2 support** — the cubie model generalises to this fairly directly; the coordinate encoders don't (they'd need reworking). Only attempt this if there's real time left over.
-6. **Optimal solver behind an `-optimal` flag with a timeout** (see `02-algorithms.md` §3.D) — the highest-cost item on this list. Do it last, or not at all.
+5. **Visual-polish "Should" items** — lighting shader, sticker gaps, undo/redo, "solve for me" handoff; see the MoSCoW table in `03a-3d-experience-and-interaction.md` §5 for the full prioritized list and what to cut first if time runs short.
+6. **2×2×2 support** — the cubie model generalises to this fairly directly; the coordinate encoders don't (they'd need reworking). Only attempt this if there's real time left over.
+7. **Optimal solver behind an `-optimal` flag with a timeout** (see `02-algorithms.md` §3.D) — the highest-cost item on this list. Do it last, or not at all.
 
 Per the subject, every option flag must be `-`-prefixed, and the mix/scramble input must always remain a valid move sequence regardless of which flags are combined.
 

@@ -6,9 +6,9 @@
 # no leak, no segfault, no double free, on every path including errors).
 # A valgrind finding shows up here as exit code 99.
 #
-# While the solver is missing, a valid non-trivial scramble exits 2 with
-# "solver not implemented yet". The check for those cases is therefore
-# "not rejected as a bad scramble", which will keep holding once it solves.
+# A valid scramble must exit 0 and print ONE line of moves. The solver is
+# checked with the binary itself: scramble + printed solution, fed back in,
+# must be a solved cube (one empty line, zero moves).
 
 BIN="${1:-.././rubik}"
 pass=0
@@ -58,14 +58,13 @@ expect_error()
 }
 
 # expect_accepted <description> <args...>
-# Must NOT be rejected as a bad scramble (exit 0, or 2 while no solver).
+# Must NOT be rejected as a bad scramble (exit 0, nothing on stderr).
 expect_accepted()
 {
 	local desc="$1"
 	shift
 	run "$@"
-	if { [ "$RC" -eq 0 ] || [ "$RC" -eq 2 ]; } \
-		&& ! grep -qE "unknown face|bad move|too long|too many|empty scramble|impossible" "$ERR"; then
+	if [ "$RC" -eq 0 ] && [ ! -s "$ERR" ]; then
 		ok
 	else
 		bad "$desc"
@@ -83,6 +82,26 @@ expect_solved_output()
 		ok
 	else
 		bad "$desc"
+	fi
+}
+
+# expect_solves <description> <scramble>: exit 0, stdout is ONE non-empty line
+# of at most <max> words, and "<scramble> <that line>" is a solved cube.
+expect_solves()
+{
+	local desc="$1" scramble="$2" max="${3:-30}" sol
+	run "$scramble"
+	sol=$(cat "$OUT")
+	if [ "$RC" -ne 0 ] || [ -z "$sol" ] || [ "$(wc -l < "$OUT")" -ne 1 ] \
+		|| [ -s "$ERR" ] || [ "$(wc -w < "$OUT")" -gt "$max" ]; then
+		bad "$desc"
+		return
+	fi
+	run "$scramble $sol"
+	if [ "$RC" -eq 0 ] && [ "$(wc -c < "$OUT")" -eq 1 ] && [ ! -s "$ERR" ]; then
+		ok
+	else
+		bad "$desc (solution does not solve it)"
 	fi
 }
 
@@ -144,9 +163,24 @@ expect_solved_output "R R R R"       "R R R R"
 expect_solved_output "sexy x6"       "R U R' U' R U R' U' R U R' U' R U R' U' R U R' U' R U R' U'"
 expect_solved_output "solved w/ newline" $'R R\'\n'
 
-# --- the caller's argv is never the problem: unsolved never prints garbage --
-run "R U"
-if [ ! -s "$OUT" ] || [ "$RC" -eq 0 ]; then ok; else bad "no partial stdout on failure"; fi
+# --- unsolved cubes get a real solution -------------------------------------
+expect_solves "single move (one move back)" "R" 1
+expect_solves "two moves"            "R U" 2
+expect_solves "subject example"      "F R U2 B' L' D'"
+expect_solves "subject long example" "R2 D' B' D F2 R F2 R2 U L' F2 U' B' L2 R D B' R' B2 L2 F2 L2 R2 U2 D2"
+expect_solves "superflip"                   "U R2 F B R B2 R U2 L B2 R U' D' R2 F R' L B2 U2 F2"
+expect_solves "sexy x5 (order 6)"    "R U R' U' R U R' U' R U R' U' R U R' U' R U R' U'"
+expect_solves "only F turns"         "F F' F2 F" 1
+expect_solves "newline separated"    $'R\nU\nF'
+expect_solves "226 moves (room left to append the answer)" "$(printf 'R U2 F %.0s' $(seq 1 75)) R"
+
+# --- the output is one line of plain notation, nothing else ------------------
+run "F R U2 B' L' D'"
+if grep -qE "^([URFDLB][2']? )*[URFDLB][2']?$" "$OUT" && [ "$(wc -l < "$OUT")" -eq 1 ]; then
+	ok
+else
+	bad "solution is one line of space-separated moves"
+fi
 
 echo "  cli: $((pass + fail)) checks, $fail failed"
 [ "$fail" -eq 0 ]

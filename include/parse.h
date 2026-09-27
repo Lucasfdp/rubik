@@ -39,6 +39,19 @@ typedef enum e_parse_status
 /// @brief Parses a scramble string like "R2 D' B'" into a move list.
 t_parse_status	parse_notation(const char *input, t_move *moves, size_t *count);
 
+/// @brief Writes a move list as notation, e.g. "R U2 F'", into `out`.
+///
+/// Moves are separated by single spaces, with no leading or trailing
+/// space, and the text ends with '\0'. This is the exact format the
+/// program prints (docs/en/01-requirements.md, R3) and the inverse of
+/// parse_notation().
+///
+/// @param moves Moves to write.
+/// @param count How many moves (0 gives an empty string).
+/// @param out   Buffer of at least count * 3 + 1 chars.
+/// @return Length of the text, not counting the '\0'.
+size_t			format_moves(const t_move *moves, size_t count, char *out);
+
 /// @brief Returns a human-readable message for a status code.
 const char		*parse_status_message(t_parse_status status);
 

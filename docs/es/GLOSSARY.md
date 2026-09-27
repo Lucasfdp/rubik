@@ -10,6 +10,8 @@ Organizado alfabéticamente. Las referencias cruzadas apuntan a otras entradas d
 
 **BFS (Breadth-First Search, búsqueda en anchura)** — Una estrategia de búsqueda que explora un espacio nivel por nivel: primero todo lo alcanzable en 1 paso, luego todo lo alcanzable en 2 pasos, y así sucesivamente. Como expande en orden de distancia, es la forma natural de construir una tabla de "distancia mínima exacta al objetivo" para cada estado de un espacio — que es exactamente lo que hacen los generadores de tablas de poda de este proyecto (empezando desde el estado resuelto y expandiéndose hacia fuera).
 
+**Bounding box (caja delimitadora)** — Una caja simple (definida por un punto de esquina mínimo y uno máximo) usada como sustituto barato de la forma real de un objeto al comprobar colisiones o clics. Comprobar si un rayo golpea una caja es mucho más barato que comprobarlo contra la geometría real del objeto, que es por qué el diseño de selección por ratón de `03a-3d-experience-and-interaction.md` prueba contra la bounding box de cada cubie en vez de sus 6 quads individuales.
+
 **Cartesiano, producto** — Dados dos conjuntos, su producto cartesiano es el conjunto de *cada combinación posible* de un elemento del primero con un elemento del segundo. Ejemplo: si el conjunto A = {1, 2} y el conjunto B = {x, y}, el producto cartesiano A × B = {(1,x), (1,y), (2,x), (2,y)} — 4 pares a partir de 2×2 entradas. En este proyecto, el espacio de estados completo de la fase 1 se describe como el producto cartesiano de tres coordenadas (`twist × flip × slice`): cada combinación posible de un valor de `twist`, uno de `flip`, y uno de `slice`. Su tamaño es simplemente el producto de los tres tamaños: 2.187 × 2.048 × 495 ≈ 2.200 millones — que es por qué es demasiado grande para guardarlo como una sola tabla y se divide en subtablas más pequeñas por pares.
 
 **Centroide** — El punto central geométrico de una figura (la posición media de todos sus puntos). Se usa en la descripción del *algoritmo del pintor* de `03-graphics.md`: los quads se ordenan por la distancia de la cámara a su centroide, para decidir el orden de dibujado.
@@ -21,6 +23,8 @@ Organizado alfabéticamente. Las referencias cruzadas apuntan a otras entradas d
 **Cubie** — Una pieza física del cubo de Rubik — o bien una pieza de esquina (toca 3 caras) o una pieza de arista (toca 2 caras). Las piezas centrales normalmente se ignoran porque nunca se mueven entre sí. El "modelo de cubies" rastrea, para cada cubie, su *permutación* (en qué posición está actualmente) y su *orientación* (cómo está girado/volteado en esa posición) — ver `04-architecture.md`. El nombre real de cada esquina y arista: `02a-cube-notation.md`.
 
 **Búsqueda en profundidad (depth-first search)** — Una estrategia de búsqueda que va tan profundo como sea posible por un camino antes de retroceder a probar alternativas, a diferencia de *BFS*, que explora nivel por nivel. *IDA\** se construye sobre búsquedas en profundidad repetidas.
+
+**Diffuse (difuso)** — La parte plana y dependiente de la dirección de cómo se sombrea una superficie iluminada: una cara se ve más brillante cuando mira más directamente hacia una fuente de luz, más oscura cuando mira en dirección contraria. Contrasta con *specular*, el pequeño brillo intenso que hace que una superficie parezca satinada. `03a-3d-experience-and-interaction.md` recomienda el shader de iluminación diffuse+specular incluido en raylib como la mejora visual de mayor valor para el bonus 3D.
 
 **Easing** — En animación, una función que controla cómo cambia un valor a lo largo del tiempo — típicamente haciendo que el movimiento empiece y termine de forma más gradual (acelerar, luego desacelerar) en vez de moverse a velocidad constante todo el rato. Se usa en `03-graphics.md` para que las animaciones de giro de cara se vean naturales en vez de robóticas.
 
@@ -38,7 +42,11 @@ Organizado alfabéticamente. Las referencias cruzadas apuntan a otras entradas d
 
 **Invariante** — Una propiedad de un sistema que permanece constante sin importar qué operaciones válidas se realicen sobre él. Ejemplo usado en este proyecto: el giro total de las esquinas en todo el cubo siempre es múltiplo de 3, sin importar qué secuencia de movimientos legales se aplique — este invariante es *por qué* la orientación de la 8ª esquina siempre queda matemáticamente determinada por las otras 7, y no necesita su propia coordenada.
 
+**Juice** (jerga de desarrollo de videojuegos) — Pequeños efectos de feedback (sonido, partículas, sacudida de pantalla, resaltados breves) añadidos sobre una lógica de juego/interfaz que ya funciona, únicamente para que las interacciones se sientan más satisfactorias, sin cambiar lo que hace realmente la lógica. Nombrado como categoría de diseño en `03a-3d-experience-and-interaction.md` §4.4 (sonidos de giro, una celebración al resolver, resaltado de movimiento).
+
 **Rejilla (lattice)** — Una malla regular y uniformemente espaciada de puntos en el espacio. En `03-graphics.md`, los 26 cubies visibles se sitúan en posiciones de la rejilla — cada combinación de x, y, z siendo cada una −1, 0, o +1.
+
+**MoSCoW** — Un esquema de priorización que clasifica los ítems de un backlog en cuatro grupos: **M**ust have (imprescindible), **S**hould have (debería tener), **C**ould have (podría tener), **W**on't have (no esta vez). Usado en `03a-3d-experience-and-interaction.md` §5 para acordar de antemano, sobre el papel, qué extras del bonus 3D se recortan primero si un sprint se alarga — decidiéndolo con anticipación en vez de bajo presión de plazo.
 
 **Norminette** — El verificador automático de estilo de código de 42, mencionado solo indirectamente en este proyecto (a través del archivo de área "personal coding norm") — no forma parte del subject de Rubik en sí, pero es relevante si se aplica una disciplina de estilo similar aquí.
 
@@ -57,6 +65,10 @@ Organizado alfabéticamente. Las referencias cruzadas apuntan a otras entradas d
 **Cuaternión (quaternion)** — Un objeto matemático usado para representar rotaciones 3D, como alternativa a las matrices de rotación — mencionado en `03-graphics.md` como algo que la librería matemática de raylib (`raymath`) proporciona ya hecho, para no tener que implementar matemáticas de rotación desde cero. No hace falta entenderlo en profundidad para este proyecto; las funciones de rotación más simples de raylib (`rlRotatef` y similares) suelen bastar para giros de cara del cubo alineados con los ejes.
 
 **Rasterización / Rasterizador** — El proceso (y el código que lo realiza) de convertir una figura geométrica — como un quad, descrito por sus puntos de esquina — en los píxeles reales en pantalla que la representan. Un "rasterizador por software" hace esto con código escrito a mano corriendo en la CPU, a diferencia de dejar que una GPU/OpenGL lo haga. Este es el núcleo del trabajo que requiere la opción MiniLibX de `03-graphics.md` §4.B.
+
+**Raycasting** — Lanzar una línea imaginaria ("rayo") desde un punto en una dirección a través de la escena 3D y preguntar qué es lo primero que golpea. Se usa en `03a-3d-experience-and-interaction.md` para convertir un clic de ratón en 2D en "qué cubie, y qué cara de él, clicó el usuario," mediante `GetMouseRay` y `GetRayCollisionBox` de raylib.
+
+**Specular (especular)** — El pequeño brillo intenso en una superficie iluminada donde la luz se refleja casi directamente hacia quien observa — es lo que hace que una superficie se lea como satinada o plástica en vez de mate. Ver *diffuse* para la otra mitad de la iluminación típica en tiempo real.
 
 **Subgrupo** — Un conjunto más pequeño de movimientos (o de estados alcanzables usando solo esos movimientos) que es autocontenido — es decir, combinar cualquier movimiento dentro del subgrupo siempre produce otro resultado que también está dentro del subgrupo. El algoritmo de Thistlethwaite (`02-algorithms.md` §3.B) funciona descendiendo por una cadena de subgrupos cada vez más restrictivos, cada uno permitiendo solo movimientos que no puedan deshacer la propiedad fijada por la fase anterior.
 

@@ -11,6 +11,10 @@
 # include "cube.h"
 # include "coord.h"
 # include "movetable.h"
+# include "prune.h"
+# include "ida.h"
+# include "solve.h"
+# include "thistlethwaite.h"
 # include "parse.h"
 
 #endif

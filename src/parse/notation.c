@@ -124,3 +124,30 @@ const char	*parse_status_message(t_parse_status status)
 	};
 	return (messages[status]);
 }
+
+/// Face letter from FACES (move / 3 is the face index), then nothing for a
+/// clockwise turn (move % 3 == 0), "2" for a 180 and "'" for a
+/// counter-clockwise turn.
+size_t	format_moves(const t_move *moves, size_t count, char *out)
+{
+	size_t	len;
+	size_t	i;
+	int		turn;
+
+	len = 0;
+	i = 0;
+	while (i < count)
+	{
+		if (i > 0)
+			out[len++] = ' ';
+		out[len++] = FACES[moves[i] / 3];
+		turn = (int)moves[i] % 3;
+		if (turn == 1)
+			out[len++] = '2';
+		else if (turn == 2)
+			out[len++] = '\'';
+		i++;
+	}
+	out[len] = '\0';
+	return (len);
+}

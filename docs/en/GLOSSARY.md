@@ -12,6 +12,8 @@ Organised alphabetically. Cross-references point to other glossary entries in *i
 
 **BFS (Breadth-First Search)** — A search strategy that explores a space level by level: first everything reachable in 1 step, then everything reachable in 2 steps, and so on. Because it expands in order of distance, it's the natural way to build a table of "exact minimum distance to goal" for every state in a space — which is exactly what the pruning-table generators in this project do (starting from the solved state and working outward).
 
+**Bounding box** — A simple box (defined by a minimum and maximum corner point) used as a cheap stand-in for an object's true shape when testing for collisions or clicks. Testing whether a ray hits a box is far cheaper than testing it against the object's actual geometry, which is why `03a-3d-experience-and-interaction.md`'s mouse-picking design tests against each cubie's bounding box rather than its 6 individual quads.
+
 **Cartesian product** — Given two sets, their Cartesian product is the set of *every possible pairing* of one item from the first set with one item from the second. Example: if set A = {1, 2} and set B = {x, y}, the Cartesian product A × B = {(1,x), (1,y), (2,x), (2,y)} — 4 pairs from 2×2 inputs. In this project, phase 1's full state space is described as the Cartesian product of three coordinates (`twist × flip × slice`): every possible combination of a `twist` value, a `flip` value, and a `slice` value. Its size is just the product of the three sizes: 2,187 × 2,048 × 495 ≈ 2.2 billion — which is why it's too large to store as a single table and gets split into smaller pairwise tables instead.
 
 **Centroid** — The geometric centre point of a shape (average position of all its points). Used in `03-graphics.md`'s description of the *painter's algorithm*: quads are sorted by the distance from the camera to their centroid, to decide drawing order.
@@ -23,6 +25,8 @@ Organised alphabetically. Cross-references point to other glossary entries in *i
 **Cubie** — One physical piece of the Rubik's Cube — either a corner piece (touches 3 faces) or an edge piece (touches 2 faces). The centre pieces are usually ignored since they never move relative to each other. The "cubie model" tracks each cubie's *permutation* (which slot it's currently in) and *orientation* (how it's twisted/flipped in that slot) — see `04-architecture.md`. Every corner and edge's actual name: `02a-cube-notation.md`.
 
 **Depth-first search** — A search strategy that goes as deep as possible down one path before backtracking to try alternatives, as opposed to *BFS* which explores level by level. *IDA\** is built on repeated depth-first searches.
+
+**Diffuse (lighting)** — The flat, direction-dependent part of how a lit surface is shaded: a face looks brighter when it faces more directly toward a light source, darker when it faces away. Contrast with *specular*, the small bright highlight that makes a surface look glossy. `03a-3d-experience-and-interaction.md` recommends raylib's built-in diffuse+specular lighting shader as the highest-value visual upgrade for the 3D bonus.
 
 **Easing** — In animation, a function that controls how a value changes over time — typically making motion start and end more gradually (accelerate, then decelerate) rather than moving at a constant speed throughout. Used in `03-graphics.md` to make face-turn animations look natural instead of robotic.
 
@@ -40,7 +44,11 @@ Organised alphabetically. Cross-references point to other glossary entries in *i
 
 **Invariant** — A property of a system that stays constant no matter what valid operations are performed on it. Example used in this project: the total corner twist across the whole cube is always a multiple of 3, no matter what sequence of legal moves you apply — this invariant is *why* the 8th corner's orientation is always mathematically determined by the other 7, and doesn't need its own coordinate.
 
+**Juice** (game-dev slang) — Small feedback effects (sound, particles, screen shake, brief highlights) added on top of working game/UI logic purely to make interactions feel more satisfying, without changing what the logic actually does. Named as a design category in `03a-3d-experience-and-interaction.md` §4.4 (turn sounds, a solve-complete celebration, move highlighting).
+
 **Lattice** — A regular, evenly-spaced grid of points in space. In `03-graphics.md`, the 26 visible cubies sit at lattice positions — every combination of x, y, z each being −1, 0, or +1.
+
+**MoSCoW** — A prioritization scheme that sorts backlog items into four buckets: **M**ust have, **S**hould have, **C**ould have, **W**on't have (this time). Used in `03a-3d-experience-and-interaction.md` §5 to pre-commit, on paper, which 3D-bonus extras get cut first if a sprint runs long — deciding that in advance rather than under deadline pressure.
 
 **Norminette** — 42's automated code-style checker, referenced only indirectly in this project (via the "personal coding norm" area file) — not part of the Rubik subject itself, but relevant if you're applying similar style discipline here.
 
@@ -59,6 +67,10 @@ Organised alphabetically. Cross-references point to other glossary entries in *i
 **Quaternion** — A mathematical object used to represent 3D rotations, as an alternative to rotation matrices — mentioned in `03-graphics.md` as something raylib's math library (`raymath`) provides ready-made, so you don't have to implement rotation math from scratch. Not strictly necessary to understand deeply for this project; raylib's simpler rotation functions (`rlRotatef` and friends) are usually enough for axis-aligned cube-face turns.
 
 **Rasterization / Rasterizer** — The process (and the code that performs it) of converting a geometric shape — like a quad, described by its corner points — into the actual pixels on screen that represent it. A "software rasterizer" does this with hand-written code running on the CPU, as opposed to letting a GPU/OpenGL do it. This is the core of the work required by the MiniLibX option in `03-graphics.md` §4.B.
+
+**Raycasting** — Firing an imaginary line ("ray") from a point in a direction through the 3D scene and asking what it hits first. Used in `03a-3d-experience-and-interaction.md` to turn a 2D mouse click into "which cubie, and which face of it, did the user click on," via raylib's `GetMouseRay` and `GetRayCollisionBox`.
+
+**Specular (lighting)** — The small, bright highlight on a lit surface where light reflects almost directly toward the viewer — it's what makes a surface read as glossy or plastic rather than chalky/matte. See *diffuse* for the other half of typical real-time lighting.
 
 **Subgroup** — A smaller set of moves (or states reachable using only those moves) that's self-contained — meaning, combining any moves from within the subgroup only ever produces other results also within that subgroup. Thistlethwaite's algorithm (`02-algorithms.md` §3.B) works by descending through a chain of increasingly restrictive subgroups, each one only allowing moves that can't undo the property locked in by the previous phase.
 

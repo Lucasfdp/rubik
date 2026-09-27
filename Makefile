@@ -6,26 +6,34 @@
 #    src/parse/      argv/notation -> t_cube, and legality validation
 #    src/cube/       cubie + facelet models, the 18 move tables
 #    src/coord/      coordinate encoders, move-table & pruning-table builders
-#    src/solve/      IDA*, Kociemba two-phase, (optional) Thistlethwaite
+#    src/solve/      IDA*, Kociemba two-phase, Thistlethwaite (bonus only —
+#                     that one .c compiles only under `make bonus`, see below)
 #    src/render/     3D bonus ONLY — raylib. Never linked into the mandatory
 #                     binary; this is structural, not a promise (see below).
 #    tests/          standalone unit tests, one binary each, module-scoped
 #    lib/raylib/     vendored as a git submodule, built locally, never installed
 #
 #  Sources are DISCOVERED, not listed: adding a .c anywhere under src/ picks
-#  it up with no edit here. Object files mirror the source tree under obj/.
+#  it up with no edit here — src/solve/thistlethwaite.c is the one deliberate
+#  exception (THISTLE_SRC below). Object files mirror the source tree under
+#  obj/. src/main.c is also special: it is compiled TWICE, once plain for
+#  $(NAME) and once with -DBONUS_ALGO for $(NAME_BONUS) (MAIN_BONUS_OBJ
+#  below), so the "-a kociemba|thistlethwaite" flag exists only in the bonus
+#  binary without a second near-duplicate entry-point file.
 #
 #  Two binaries, on purpose (R11: bonus only counts if mandatory is perfect):
-#    make        ->  $(NAME)        mandatory only, src/render/ excluded
-#    make bonus  ->  $(NAME_BONUS)  mandatory + src/render/, linked against raylib
+#    make        ->  $(NAME)        mandatory only: src/render/ and
+#                                    Thistlethwaite excluded, no -a flag
+#    make bonus  ->  $(NAME_BONUS)  mandatory + src/render/ (raylib) +
+#                                    Thistlethwaite, choose it with -a
 #  `make` never touches raylib and never fails because of it.
 # =============================================================================
 
 NAME		:=	rubik
 NAME_BONUS	:=	rubik_bonus
-TESTS		:=	test_moves test_cubie test_parse test_coord test_movetable
+TESTS		:=	test_moves test_cubie test_parse test_coord test_movetable test_prune test_ida test_solve test_thistlethwaite
 # ^ One binary per module, all built from tests/. test_moves / test_cubie /
-#   test_parse / test_coord / test_movetable are C unit tests; tests/test_cli.sh is the end-to-end check on
+#   test_parse / test_coord / test_movetable / test_prune / test_ida / test_solve / test_thistlethwaite are C unit tests; tests/test_cli.sh is the end-to-end check on
 #   ./rubik itself (exit codes, messages, stdout). `make test` runs all of
 #   them. Add one TESTS entry + one *_SRCS/*_OBJS pair below per new module
 #   (coord, solve, ...) — same pattern, not a rewrite.
@@ -75,8 +83,24 @@ RENDER_DIR	:=	$(SRC_DIR)/render
 # enforcement of "zero graphics code linked into the mandatory binary"
 # (04-architecture.md), not just a naming convention. $(NAME) is built from
 # $(OBJS) alone; render objects never enter that list.
-SRCS		:=	$(shell find $(SRC_DIR) -name '*.c' -not -path '$(RENDER_DIR)/*')
+# Thistlethwaite is bonus-only (R11 + the subject's multi-algorithm-selection
+# bonus item): excluded from the mandatory SRCS the same way src/render/ is,
+# and linked into $(NAME_BONUS) explicitly via THISTLE_OBJ below.
+THISTLE_SRC	:=	$(SRC_DIR)/solve/thistlethwaite.c
+THISTLE_OBJ	:=	$(THISTLE_SRC:%.c=$(OBJ_DIR)/%.o)
+
+SRCS		:=	$(shell find $(SRC_DIR) -name '*.c' -not -path '$(RENDER_DIR)/*' \
+					-not -path '$(THISTLE_SRC)')
 OBJS		:=	$(SRCS:%.c=$(OBJ_DIR)/%.o)
+
+# main.c is compiled twice — see the header comment above. MAIN_OBJ is the
+# plain one, already inside OBJS/$(NAME); CORE_OBJS is everything else
+# mandatory (library code, no entry point), reused by $(NAME_BONUS) instead
+# of MAIN_OBJ so the bonus binary links MAIN_BONUS_OBJ in its place.
+MAIN_SRC		:=	$(SRC_DIR)/main.c
+MAIN_OBJ		:=	$(MAIN_SRC:%.c=$(OBJ_DIR)/%.o)
+MAIN_BONUS_OBJ	:=	$(OBJ_DIR)/$(SRC_DIR)/main_bonus.o
+CORE_OBJS		:=	$(filter-out $(MAIN_OBJ),$(OBJS))
 
 RENDER_SRCS	:=	$(shell find $(RENDER_DIR) -name '*.c' 2>/dev/null)
 RENDER_OBJS	:=	$(RENDER_SRCS:%.c=$(OBJ_DIR)/%.o)
@@ -104,15 +128,49 @@ MT_SRCS		:=	$(TEST_DIR)/test_movetable.c $(SRC_DIR)/coord/movetable.c \
 				$(SRC_DIR)/cube/moves.c
 MT_OBJS		:=	$(MT_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-ALL_OBJS	:=	$(sort $(OBJS) $(RENDER_OBJS) $(MV_OBJS) $(CB_OBJS) $(PR_OBJS) $(CO_OBJS) $(MT_OBJS))
+PU_SRCS		:=	$(TEST_DIR)/test_prune.c $(SRC_DIR)/coord/prune.c \
+				$(SRC_DIR)/coord/movetable.c $(SRC_DIR)/coord/encode.c \
+				$(SRC_DIR)/coord/decode.c $(SRC_DIR)/coord/tables.c \
+				$(SRC_DIR)/cube/cubie.c $(SRC_DIR)/cube/moves.c
+PU_OBJS		:=	$(PU_SRCS:%.c=$(OBJ_DIR)/%.o)
+
+ID_SRCS		:=	$(TEST_DIR)/test_ida.c $(SRC_DIR)/solve/ida.c \
+				$(SRC_DIR)/coord/prune.c $(SRC_DIR)/coord/movetable.c \
+				$(SRC_DIR)/coord/encode.c $(SRC_DIR)/coord/decode.c \
+				$(SRC_DIR)/coord/tables.c $(SRC_DIR)/cube/cubie.c \
+				$(SRC_DIR)/cube/moves.c
+ID_OBJS		:=	$(ID_SRCS:%.c=$(OBJ_DIR)/%.o)
+
+SO_SRCS		:=	$(TEST_DIR)/test_solve.c $(SRC_DIR)/solve/solve.c \
+				$(SRC_DIR)/solve/ida.c $(SRC_DIR)/coord/prune.c \
+				$(SRC_DIR)/coord/movetable.c $(SRC_DIR)/coord/encode.c \
+				$(SRC_DIR)/coord/decode.c $(SRC_DIR)/coord/tables.c \
+				$(SRC_DIR)/parse/notation.c $(SRC_DIR)/parse/validate.c \
+				$(SRC_DIR)/cube/cubie.c $(SRC_DIR)/cube/moves.c
+SO_OBJS		:=	$(SO_SRCS:%.c=$(OBJ_DIR)/%.o)
+
+TH_SRCS		:=	$(TEST_DIR)/test_thistlethwaite.c $(SRC_DIR)/solve/thistlethwaite.c \
+				$(SRC_DIR)/solve/solve.c $(SRC_DIR)/solve/ida.c \
+				$(SRC_DIR)/coord/prune.c $(SRC_DIR)/coord/movetable.c \
+				$(SRC_DIR)/coord/encode.c $(SRC_DIR)/coord/decode.c \
+				$(SRC_DIR)/coord/tables.c $(SRC_DIR)/parse/notation.c \
+				$(SRC_DIR)/parse/validate.c $(SRC_DIR)/cube/cubie.c \
+				$(SRC_DIR)/cube/moves.c
+TH_OBJS		:=	$(TH_SRCS:%.c=$(OBJ_DIR)/%.o)
+
+ALL_OBJS	:=	$(sort $(OBJS) $(MAIN_BONUS_OBJ) $(RENDER_OBJS) $(MV_OBJS) $(CB_OBJS) $(PR_OBJS) $(CO_OBJS) $(MT_OBJS) $(PU_OBJS) $(ID_OBJS) $(SO_OBJS) $(TH_OBJS))
 
 # Progress-bar denominator: `make bonus` also compiles src/render/, `make`
 # alone never does — count accordingly so the bar actually reaches 100%
 # either way instead of stalling or overshooting.
 ifneq ($(filter bonus,$(MAKECMDGOALS)),)
-TOTAL		:=	$(words $(SRCS) $(RENDER_SRCS))
+# CORE_OBJS (len(SRCS)-1, main.c swapped out) + MAIN_BONUS_OBJ (1, swapped
+# in) + THISTLE_OBJ (1, extra) + RENDER_OBJS -> len(SRCS) + len(RENDER_SRCS)
+# + 1; adding THISTLE_SRC to this word-count union is that "+1", same trick
+# the rest of this file uses instead of raw arithmetic.
+TOTAL		:=	$(words $(SRCS) $(RENDER_SRCS) $(THISTLE_SRC))
 else ifneq ($(filter test,$(MAKECMDGOALS)),)
-TOTAL		:=	$(words $(sort $(OBJS) $(MV_OBJS) $(CB_OBJS) $(PR_OBJS) $(CO_OBJS) $(MT_OBJS)))
+TOTAL		:=	$(words $(sort $(OBJS) $(MV_OBJS) $(CB_OBJS) $(PR_OBJS) $(CO_OBJS) $(MT_OBJS) $(PU_OBJS) $(ID_OBJS) $(SO_OBJS) $(TH_OBJS)))
 else
 TOTAL		:=	$(words $(SRCS))
 endif
@@ -191,10 +249,10 @@ $(NAME): $(OBJS)
 
 bonus: $(RAYLIB_LIB) $(NAME_BONUS)
 
-$(NAME_BONUS): $(OBJS) $(RENDER_OBJS)
-	@$(CC) $(CFLAGS) $(OBJS) $(RENDER_OBJS) $(LDLIBS_BONUS) -o $(NAME_BONUS)
+$(NAME_BONUS): $(CORE_OBJS) $(MAIN_BONUS_OBJ) $(THISTLE_OBJ) $(RENDER_OBJS)
+	@$(CC) $(CFLAGS) $(CORE_OBJS) $(MAIN_BONUS_OBJ) $(THISTLE_OBJ) $(RENDER_OBJS) $(LDLIBS_BONUS) -o $(NAME_BONUS)
 	@$(MAKE) banner
-	@printf "$(GREEN)$(BOLD) [rubik_bonus compiled successfully — 3D renderer linked]$(RESET)\n\n"
+	@printf "$(GREEN)$(BOLD) [rubik_bonus compiled successfully — 3D renderer + Thistlethwaite linked, -a to choose]$(RESET)\n\n"
 
 # Compile with progress bar. The mkdir handles the mirrored obj/ subtree,
 # so a new src/<module>/ directory needs no rule of its own.
@@ -209,6 +267,23 @@ $(OBJ_DIR)/%.o: %.c
 	@i=0; while [ $$i -lt $(EMPTY) ]; do printf "░"; i=$$((i+1)); done
 	@printf "$(CYAN)] $(BOLD)%3d%%$(RESET)" $(PCT)
 	@$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
+
+# main.c compiled a second time, with -DBONUS_ALGO, so the -a flag only
+# exists in $(NAME_BONUS); $(NAME) links plain $(MAIN_OBJ) instead and its
+# argv handling never sees this macro. Same progress-bar bookkeeping as the
+# generic rule above, since this one bypasses it (different stem: main vs
+# main_bonus, not a pattern rule).
+$(MAIN_BONUS_OBJ): $(MAIN_SRC)
+	@mkdir -p $(dir $@)
+	@$(eval COMPILED := $(shell echo $$(($(COMPILED) + 1))))
+	@$(eval PCT := $(shell echo $$(($(COMPILED) * 100 / $(TOTAL)))))
+	@$(eval FILLED := $(shell if [ $(COMPILED) -ge $(TOTAL) ]; then echo 20; else echo $$(($(COMPILED) * 20 / $(TOTAL))); fi))
+	@$(eval EMPTY := $(shell echo $$(( 20 - $(FILLED)))))
+	@printf "\r$(CYAN)  Compiling $(BOLD)%-30s$(RESET)$(CYAN) [" "$(notdir $@)"
+	@i=0; while [ $$i -lt $(FILLED) ]; do printf "$(GREEN)█$(RESET)"; i=$$((i+1)); done
+	@i=0; while [ $$i -lt $(EMPTY) ]; do printf "░"; i=$$((i+1)); done
+	@printf "$(CYAN)] $(BOLD)%3d%%$(RESET)" $(PCT)
+	@$(CC) $(CFLAGS) $(CPPFLAGS) -DBONUS_ALGO -c $< -o $@
 
 # ==========================
 # Unit tests (C)
@@ -234,6 +309,18 @@ test_coord: $(CO_OBJS)
 
 test_movetable: $(MT_OBJS)
 	@$(CC) $(CFLAGS) $(MT_OBJS) $(LDLIBS) -o $@
+
+test_prune: $(PU_OBJS)
+	@$(CC) $(CFLAGS) $(PU_OBJS) $(LDLIBS) -o $@
+
+test_ida: $(ID_OBJS)
+	@$(CC) $(CFLAGS) $(ID_OBJS) $(LDLIBS) -o $@
+
+test_solve: $(SO_OBJS)
+	@$(CC) $(CFLAGS) $(SO_OBJS) $(LDLIBS) -o $@
+
+test_thistlethwaite: $(TH_OBJS)
+	@$(CC) $(CFLAGS) $(TH_OBJS) $(LDLIBS) -o $@
 
 # ==========================
 # Valgrind
@@ -315,6 +402,7 @@ env:
 	fi
 	@printf "$(CYAN)$(BOLD)\n  Sources found$(RESET)\n\n"
 	@printf "    %-14s %s\n" "mandatory (.c)" "$(words $(SRCS))"
+	@printf "    %-14s %s\n" "bonus algo (.c)" "$(words $(THISTLE_SRC))"
 	@printf "    %-14s %s\n" "render (.c)"    "$(words $(RENDER_SRCS))"
 	@if [ "$(words $(SRCS))" -eq 0 ]; then \
 		printf "    $(RED)no sources found - are you running make from the repo root?$(RESET)\n"; \
@@ -336,7 +424,8 @@ cloc:
 list:
 	@printf "$(CYAN)$(BOLD)\n  Mandatory sources ($(words $(SRCS)) files):$(RESET)\n"
 	@for f in $(SRCS); do printf "    $(GREEN)→$(RESET) $$f\n"; done
-	@printf "$(CYAN)$(BOLD)\n  Render sources — bonus only ($(words $(RENDER_SRCS)) files):$(RESET)\n"
+	@printf "$(CYAN)$(BOLD)\n  Bonus-only sources — linked into $(NAME_BONUS) only:$(RESET)\n"
+	@printf "    $(MAGENTA)→$(RESET) $(THISTLE_SRC)\n"
 	@for f in $(RENDER_SRCS); do printf "    $(MAGENTA)→$(RESET) $$f\n"; done
 	@printf "$(CYAN)$(BOLD)\n  Headers:$(RESET)\n"
 	@for f in include/*.h; do printf "    $(BLUE)→$(RESET) $$f\n"; done
@@ -493,7 +582,8 @@ help:
 	@printf "  $(GREEN)make flash$(RESET)            — 30s flashing cube showcase (Ctrl+C to stop early)\n"
 	@printf "  $(GREEN)make help$(RESET)             — show this message\n"
 	@printf "\n$(CYAN)  Usage:$(RESET)\n"
-	@printf "  $(YELLOW)./rubik \"R2 U F' L2 D B R U2 L' F2\"$(RESET)   (mandatory)\n"
-	@printf "  $(YELLOW)./rubik_bonus \"...\"$(RESET)                    (3D bonus, same scramble syntax)\n\n"
+	@printf "  $(YELLOW)./rubik \"R2 U F' L2 D B R U2 L' F2\"$(RESET)                (mandatory, Kociemba only)\n"
+	@printf "  $(YELLOW)./rubik_bonus \"...\"$(RESET)                                 (bonus, Kociemba by default)\n"
+	@printf "  $(YELLOW)./rubik_bonus \"...\" -a thistlethwaite$(RESET)               (bonus, Thistlethwaite instead)\n\n"
 
 .PHONY: all bonus test clean fclean fclean-raylib re valgrind debug run check env cloc list banner flash push help

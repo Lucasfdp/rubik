@@ -14,6 +14,7 @@
 | Float drift in the 3D animation desyncs the render from the logical state | Medium | Commit-on-complete + reset the animation transform to identity after every move; the 1,000-move drift test in Sprint 6 catches this. |
 | Table generation at startup pushes total runtime near the 3s limit | Low | Tables are under 10 MB and generate via BFS in well under a second — measure it directly in Sprint 3 anyway, don't just assume. |
 | One of you can't defend the other's module | Medium | The Sprint 8 swap rehearsal; deliberate cross-pairing already built into Sprints 1–2 and 6. |
+| Camera-orbit and layer-turn mouse input fight each other; visual-polish backlog eats time meant for the algorithm/render core | Medium | See `03a-3d-experience-and-interaction.md` §7 for the specific mitigations (button-split input convention decided in Sprint 5; the MoSCoW backlog as a pre-committed cut line). |
 
 ## Open decisions for the two of you
 
@@ -22,3 +23,6 @@
 3. **Who takes Dev A vs. Dev B?** The A track leans more toward I/O and correctness-plumbing; the B track leans more toward combinatorics and search. Swap roles between Sprint 2 and Sprint 6, so neither of you does the same flavour of work twice.
 4. **One binary with a `-v` visual flag, or two separate binaries?** Recommendation: two — this protects the mandatory build from any bonus-side breakage (see `04-architecture.md`).
 5. **Generate tables at startup, or cache them to disk?** Recommendation: at startup. It's fast enough to stay well inside the time budget, and it removes an awkward question at defence about whether cached tables count as pre-computed cheating.
+6. **Button-split vs. modifier-key vs. empty-space rule** for camera-orbit vs. layer-turn mouse input (`03a-3d-experience-and-interaction.md` §3.3). Recommendation: button-split (left-drag turns, right-drag orbits).
+7. **Keyboard-only manual mode, or also mouse click-and-drag turning?** (`03a-3d-experience-and-interaction.md` §3.1). Recommendation: keyboard first, unconditionally; mouse-drag is a stretch goal attempted only once the MoSCoW "Must"/"Should" items are done.
+8. **Does Practice/Manual mode get demoed at defence?** (`03a-3d-experience-and-interaction.md` §9). Recommendation: decide once it exists and has proven reliable — it's a strong demo moment if it works cleanly, a risk if it doesn't.

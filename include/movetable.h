@@ -48,6 +48,28 @@ typedef uint32_t	t_move_mask;
 	| MOVE_BIT(MOVE_R2) | MOVE_BIT(MOVE_F2) \
 	| MOVE_BIT(MOVE_L2) | MOVE_BIT(MOVE_B2))
 
+/// Thistlethwaite's own phase masks (docs/en/10-thistlethwaite-spec.md §1).
+/// Each is the previous group's own moves: using anything else while
+/// searching inside that group would undo the property already locked in.
+
+/// Phase 2's search mask: G1's own moves. Any U, D, L or R turn is safe
+/// (none of them ever flip an edge, per FACE_TABLES in src/cube/moves.c).
+/// Only F and B are locked to half-turn: a quarter F or B flips 4 edges
+/// (breaking flip == 0); F2/B2 flip each of those edges twice, net zero.
+# define MOVES_G1 ( \
+	MOVE_BIT(MOVE_U1) | MOVE_BIT(MOVE_U2) | MOVE_BIT(MOVE_U3) \
+	| MOVE_BIT(MOVE_D1) | MOVE_BIT(MOVE_D2) | MOVE_BIT(MOVE_D3) \
+	| MOVE_BIT(MOVE_L1) | MOVE_BIT(MOVE_L2) | MOVE_BIT(MOVE_L3) \
+	| MOVE_BIT(MOVE_R1) | MOVE_BIT(MOVE_R2) | MOVE_BIT(MOVE_R3) \
+	| MOVE_BIT(MOVE_F2) | MOVE_BIT(MOVE_B2))
+
+/// Phase 4's search mask: G3's own moves, the 6 half turns. A strict
+/// subset of MOVES_PHASE2, so eperm/sperm already have real answers for
+/// every one of these columns.
+# define MOVES_G3 ( \
+	MOVE_BIT(MOVE_U2) | MOVE_BIT(MOVE_D2) | MOVE_BIT(MOVE_L2) \
+	| MOVE_BIT(MOVE_R2) | MOVE_BIT(MOVE_F2) | MOVE_BIT(MOVE_B2))
+
 /// @brief True if the move is in the set.
 static inline bool	move_in_mask(t_move_mask mask, t_move move)
 {

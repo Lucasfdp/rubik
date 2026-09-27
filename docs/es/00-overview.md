@@ -10,13 +10,14 @@ Este es el índice. Cada archivo enlazado cubre una zona de decisión completa, 
 2. **`02-algorithms.md`** — la decisión del solver. Cinco opciones comparadas, se recomienda el algoritmo de dos fases de Kociemba.
 3. **`02a-cube-notation.md`** — el nombre de cada cubie y cada facelet, la indexación de facelets de Kociemba, y cómo se codifican el giro de esquina y el volteo de arista. Leedlo junto al §3.0 de `02-algorithms.md`.
 4. **`03-graphics.md`** — la decisión del bonus 3D. raylib vs. rasterizador hecho a mano vs. OpenGL puro.
-5. **`04-architecture.md`** — cómo está organizado el código para que la regla anti-trampa sea estructural y dos personas puedan trabajar en paralelo.
-6. **`05-roadmap-mandatory.md`** — plan sprint a sprint para la parte obligatoria.
-7. **`06-roadmap-bonus.md`** — plan sprint a sprint para el bonus 3D.
-8. **`07-defence-prep.md`** — las preguntas que te harán en la evaluación, con respuestas listas para pizarra.
-9. **`08-risks-and-open-decisions.md`** — qué podría salir mal, y las decisiones que aún os quedan por tomar a los dos.
-10. **`09-sources.md`** — toda afirmación de arriba que no sea "esto lo decidimos nosotros" viene de aquí.
-11. **`GLOSSARY.md`** — todos los términos técnicos usados en todos los archivos anteriores, definidos desde cero. No se asume conocimiento previo de teoría de grupos ni de gráficos.
+5. **`03a-3d-experience-and-interaction.md`** — el bonus 3D, en profundidad: modos de reproducción (tiempo real/lento/paso/scrub), un modo completo de interacción manual "usarlo como un cubo real", y un backlog priorizado de extras de acabado visual.
+6. **`04-architecture.md`** — cómo está organizado el código para que la regla anti-trampa sea estructural y dos personas puedan trabajar en paralelo.
+7. **`05-roadmap-mandatory.md`** — plan sprint a sprint para la parte obligatoria.
+8. **`06-roadmap-bonus.md`** — plan sprint a sprint para el bonus 3D.
+9. **`07-defence-prep.md`** — las preguntas que te harán en la evaluación, con respuestas listas para pizarra.
+10. **`08-risks-and-open-decisions.md`** — qué podría salir mal, y las decisiones que aún os quedan por tomar a los dos.
+11. **`09-sources.md`** — toda afirmación de arriba que no sea "esto lo decidimos nosotros" viene de aquí.
+12. **`GLOSSARY.md`** — todos los términos técnicos usados en todos los archivos anteriores, definidos desde cero. No se asume conocimiento previo de teoría de grupos ni de gráficos.
 
 ## Recomendación, por adelantado
 
