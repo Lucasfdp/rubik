@@ -40,6 +40,7 @@ static int	queue_solution(t_app *app)
 	app->solution_start_cube = app->cube;
 	app->solution_move_count = count;
 	app->solution_scrubbable = true;
+	app->scrambling = false;
 	i = 0;
 	while (i < count && anim_push(&app->anim, app->solution_moves[i]))
 		i++;
@@ -70,6 +71,7 @@ static void	init_app(t_app *app, const t_cube *start_cube, bool has_scramble)
 	app->rounded_corners = false;
 	app->auto_loop = false;
 	app->auto_loop_wait_sec = 0.0f;
+	app->scrambling = false;
 	app->was_solved = cube_is_solved(&app->cube);
 	if (has_scramble)
 	{
@@ -99,6 +101,7 @@ static void	do_scramble(t_app *app)
 		i++;
 	}
 	app->solution_count = SCRAMBLE_LEN;
+	app->scrambling = true;
 	app->mode = MODE_AUTOPLAY;
 	history_init(&app->history);
 	app->stats = (t_session_stats){0};
@@ -134,7 +137,7 @@ static void	tick_autoplay(t_app *app, float dt)
 	}
 	if (!cube_is_solved(&app->cube))
 	{
-		queue_solution(app);
+		app->solution_count = queue_solution(app);
 		return ;
 	}
 	app->auto_loop_wait_sec += dt;
@@ -145,21 +148,18 @@ static void	tick_autoplay(t_app *app, float dt)
 	}
 }
 
-/// @brief The one place a manual (Mode C) move enters the animation
-///        queue — keyboard turns, mouse-drag turns, AND undo/redo
-///        replays, so stats/timing bookkeeping never has a second path
-///        to drift out of sync with. `record` is true only for a
-///        genuinely new turn (keyboard or mouse): an undo/redo replay
-///        must NOT re-record itself, or it would defeat its own
-///        redo/undo stack. Any call here — new or replayed — means the
-///        live cube has diverged from whatever solution/scramble
-///        app->solution_moves last tracked, so Phase 7 §9.6's scrub
-///        controls are retired until the next fresh one.
-static void	push_manual_move(t_app *app, t_move move, bool record)
+/// @brief Shared bookkeeping for any manual move that enters the anim
+///        pipeline, whichever door it came through (queued or a direct
+///        drag hand-off, docs/en/11-drag-review.md §5.4): retires Phase
+///        7 §9.6's scrub tracking (any manual move means the live cube
+///        has diverged from whatever solution/scramble was tracked) and
+///        starts the practice timer on the first manual move after a
+///        scramble. `record` is true only for a genuinely new turn: an
+///        undo/redo replay must NOT re-record itself, or it would defeat
+///        its own redo/undo stack.
+static void	record_manual_move(t_app *app, t_move move, bool record)
 {
 	app->solution_scrubbable = false;
-	if (!anim_push(&app->anim, move))
-		return ;
 	if (record)
 		history_record(&app->history, move);
 	if (!app->stats.timing)
@@ -168,6 +168,28 @@ static void	push_manual_move(t_app *app, t_move move, bool record)
 		app->stats.timer_start_sec = GetTime();
 	}
 	app->stats.move_count++;
+}
+
+/// @brief The queued path into the anim pipeline: keyboard turns and
+///        undo/redo replays. Starts the move at angle 0, eased in-out —
+///        anim_update()'s own dequeue does the rest, exactly as before.
+static void	push_manual_move(t_app *app, t_move move, bool record)
+{
+	if (!anim_push(&app->anim, move))
+		return ;
+	record_manual_move(app, move, record);
+}
+
+/// @brief The mouse-drag counterpart of push_manual_move(): starts `move`
+///        animating immediately via anim_begin_from(), continuing on
+///        from the drag's own angle instead of rewinding to 0 first
+///        (docs/en/11-drag-review.md §2.1/B5). Always records — a drag
+///        release is always a new manual turn, never a replay.
+static void	push_manual_move_from(t_app *app, t_move move, float from,
+	float to)
+{
+	anim_begin_from(&app->anim, move, from, to);
+	record_manual_move(app, move, true);
 }
 
 /// @brief Runs the solver on the CURRENT live cube (not a separately
@@ -193,7 +215,7 @@ static void	solve_for_me(t_app *app)
 ///        [target, count) so animated playback resumes from there. The
 ///        current position is read back from anim's own pending count
 ///        rather than kept as separate state — valid exactly as long as
-///        app->solution_scrubbable holds (see push_manual_move()).
+///        app->solution_scrubbable holds (see record_manual_move()).
 static void	solution_jump(t_app *app, int delta)
 {
 	int	current;
@@ -242,33 +264,49 @@ static void	solution_reverse(t_app *app)
 	app->mode = MODE_AUTOPLAY;
 }
 
-/// @brief One frame of Mode C's mouse half of the button split: starts a
-///        drag on left-mouse-down, updates it while held, and on release
-///        resolves it into a real move through the exact same
-///        anim_push()-via-push_manual_move() path keyboard turns use
-///        (Phase 6, docs/en/03b-3d-implementation-plan.md section 8).
-static void	tick_manual_mouse(t_app *app)
+/// @brief One frame of Mode C's mouse half of the button split
+///        (docs/en/11-drag-review.md §5.4): starts a drag on left-
+///        mouse-down, updates it while held, and resolves it on
+///        release — either into a real move (continuing to animate from
+///        the drag's own angle, B5/B6) or, if it never left the dead
+///        zone or was locked onto a middle slice, a settle back to 0.
+///        Release is LEVEL-triggered (button no longer down, or the
+///        window lost focus) rather than edge-triggered on
+///        IsMouseButtonReleased(), so a drag can never get stuck
+///        following the mouse with no button held (§2.4/S2) — pressing
+///        `A` mid-drag additionally cancels it explicitly, see
+///        render_run().
+static void	tick_manual_mouse(t_app *app, float dt)
 {
 	t_move	move;
+	float	from;
+	float	to;
 
-	if (!app->drag.active && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
-		input_pick_start(&app->drag, &app->scene, app->camera);
-	else if (app->drag.active && IsMouseButtonReleased(MOUSE_BUTTON_LEFT))
+	if (!app->drag.active)
 	{
-		move = input_pick_release(&app->drag);
-		if (move != MOVE_COUNT)
-			push_manual_move(app, move, true);
+		if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+			input_pick_start(&app->drag, app->camera);
+		return ;
 	}
-	else if (app->drag.active)
-		input_pick_drag(&app->drag, GetMouseDelta());
+	if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && IsWindowFocused())
+	{
+		input_pick_drag(&app->drag, GetMousePosition(), dt);
+		return ;
+	}
+	move = input_pick_release(&app->drag, &from, &to);
+	if (move != MOVE_COUNT)
+		push_manual_move_from(app, move, from, to);
+	else if (from != 0.0f)
+		anim_begin_settle(&app->anim, app->drag.axis, app->drag.layer,
+			from);
 }
 
 /// @brief One frame of Mode C (manual): reads at most one input source —
 ///        an in-progress mouse drag, a scramble/solve/undo/redo/scrub
 ///        key, or a keyboard face turn — and feeds any resulting move
-///        into the SAME anim_push()/anim_update() pipeline autoplay
-///        uses. Also tracks the practice-session timer: started by the
-///        first manual move, stopped the instant the cube reads solved.
+///        into the SAME anim pipeline autoplay uses. Also tracks the
+///        practice-session timer: started by the first manual move,
+///        stopped the instant the cube reads solved.
 static void	tick_manual(t_app *app, float dt)
 {
 	t_move	move;
@@ -277,7 +315,7 @@ static void	tick_manual(t_app *app, float dt)
 	if (anim_is_idle(&app->anim))
 	{
 		if (app->drag.active || IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
-			tick_manual_mouse(app);
+			tick_manual_mouse(app, dt);
 		else if (IsKeyPressed(KEY_S))
 			do_scramble(app);
 		else if (IsKeyPressed(KEY_ENTER))
@@ -315,20 +353,27 @@ bool	render_run(const t_cube *start_cube, bool has_scramble)
 	t_active_turn	turn;
 	bool			now_solved;
 
+	SetConfigFlags(FLAG_VSYNC_HINT);
 	InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "rubik -- 3D bonus");
+	SetTargetFPS(60);
 	init_app(&app, start_cube, has_scramble);
 	while (!WindowShouldClose())
 	{
 		dt = GetFrameTime();
-		orbit_camera_update(&app.orbit, &app.camera, dt);
-		if (IsKeyPressed(KEY_FIVE))
-			orbit_camera_preset(&app.orbit, 0);
-		if (IsKeyPressed(KEY_SIX))
-			orbit_camera_preset(&app.orbit, 1);
-		if (IsKeyPressed(KEY_SEVEN))
-			orbit_camera_preset(&app.orbit, 2);
-		if (IsKeyPressed(KEY_EIGHT))
-			orbit_camera_preset(&app.orbit, 3);
+		if (app.mode == MODE_MANUAL && !app.drag.active)
+			orbit_camera_key_nudge(&app.orbit, dt);
+		orbit_camera_update(&app.orbit, &app.camera, dt, !app.drag.active);
+		if (!app.drag.active)
+		{
+			if (IsKeyPressed(KEY_FIVE))
+				orbit_camera_preset(&app.orbit, 0);
+			if (IsKeyPressed(KEY_SIX))
+				orbit_camera_preset(&app.orbit, 1);
+			if (IsKeyPressed(KEY_SEVEN))
+				orbit_camera_preset(&app.orbit, 2);
+			if (IsKeyPressed(KEY_EIGHT))
+				orbit_camera_preset(&app.orbit, 3);
+		}
 		if (IsKeyPressed(KEY_P))
 		{
 			geometry_palette_cycle();
@@ -338,6 +383,7 @@ bool	render_run(const t_cube *start_cube, bool has_scramble)
 			app.rounded_corners = !app.rounded_corners;
 		if (IsKeyPressed(KEY_A))
 		{
+			input_pick_cancel(&app.drag);
 			app.auto_loop = !app.auto_loop;
 			if (!app.auto_loop)
 			{
@@ -360,15 +406,16 @@ bool	render_run(const t_cube *start_cube, bool has_scramble)
 			turn = input_drag_get_active_turn(&app.drag);
 		draw_lighting_update_camera(&app.lighting, app.camera);
 		BeginDrawing();
-		ClearBackground(RAYWHITE);
+		ClearBackground(BLACK);
 		DrawRectangleGradientV(0, 0, GetScreenWidth(), GetScreenHeight(),
-			(Color){235, 244, 255, 255}, (Color){250, 250, 248, 255});
+			(Color){28, 30, 38, 255}, (Color){12, 12, 15, 255});
 		BeginMode3D(app.camera);
 		draw_scene(&app.scene, &turn, &app.lighting, app.rounded_corners);
 		fx_update_and_draw(&app.fx, dt);
 		EndMode3D();
 		hud_draw(&app.anim, app.mode, app.solution_count,
-			app.stats.elapsed_sec, app.stats.move_count, app.auto_loop);
+			app.stats.elapsed_sec, app.stats.move_count, app.auto_loop,
+			app.scrambling);
 		EndDrawing();
 	}
 	fx_unload(&app.fx);

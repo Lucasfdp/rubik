@@ -22,8 +22,11 @@
 /// @param auto_loop   True while Phase 7 §9.6's auto-loop demo is on —
 ///                    shown so it's obvious the app is driving itself
 ///                    and L (not just Esc) turns it back off.
+/// @param scrambling  True while the queued playback is a scramble,
+///                    false while it's a solve — used to label the
+///                    autoplay HUD "SCRAMBLING" vs "SOLVING".
 void	hud_draw(const t_anim_state *anim, t_render_mode mode,
 			int total_moves, double elapsed_sec, int move_count,
-			bool auto_loop);
+			bool auto_loop, bool scrambling);
 
 #endif

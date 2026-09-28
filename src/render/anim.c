@@ -4,6 +4,10 @@
 # define ANIM_DEFAULT_SPEED 360.0f
 # define ANIM_MIN_SPEED 60.0f
 # define ANIM_MAX_SPEED 720.0f
+/// Floor on a drag hand-off's animation length (§5.3/B5): a release
+/// right at the target angle (from == to, e.g. a settle from 0) would
+/// otherwise divide out to a zero-length anim and pop instead of ease.
+# define ANIM_RELEASE_MIN_SEC 0.06f
 
 /// One entry per t_move (18). axis/layer/quarter_deg describe ONE
 /// application of that move as a rotation of the matching world axis
@@ -53,6 +57,18 @@ static float	ease_in_out_cubic(float t)
 	return (1.0f - powf(-2.0f * t + 2.0f, 3.0f) / 2.0f);
 }
 
+/// @brief Cubic ease-OUT: fast start, slow finish. Used only for a drag
+///        hand-off (§2.1/B5) — the layer is already moving when the
+///        mouse releases, so easing back IN (slow start) would make it
+///        visibly stall before continuing.
+static float	ease_out_cubic(float t)
+{
+	float	inv;
+
+	inv = 1.0f - t;
+	return (1.0f - inv * inv * inv);
+}
+
 static float	clampf(float value, float lo, float hi)
 {
 	if (value < lo)
@@ -67,12 +83,17 @@ void	anim_init(t_anim_state *state)
 	state->head = 0;
 	state->tail = 0;
 	state->active = false;
+	state->current = MOVE_COUNT;
 	state->elapsed_sec = 0.0f;
 	state->duration_sec = 0.0f;
 	state->angle_deg = 0.0f;
+	state->from_deg = 0.0f;
 	state->target_deg = 0.0f;
 	state->speed_deg_per_sec = ANIM_DEFAULT_SPEED;
 	state->paused = false;
+	state->ease_out = false;
+	state->settle_axis = AXIS_X;
+	state->settle_layer = 0;
 }
 
 bool	anim_push(t_anim_state *state, t_move move)
@@ -91,6 +112,7 @@ void	anim_update(t_anim_state *state, t_render_scene *scene,
 	t_cube *cube, t_fx_state *fx, float dt)
 {
 	float	frac;
+	float	eased;
 
 	if (!state->active)
 	{
@@ -99,9 +121,11 @@ void	anim_update(t_anim_state *state, t_render_scene *scene,
 		state->current = state->queue[state->head];
 		state->head = (state->head + 1) % ANIM_QUEUE_CAP;
 		state->elapsed_sec = 0.0f;
+		state->from_deg = 0.0f;
 		state->target_deg = MOVE_AXIS[state->current].quarter_deg;
 		state->duration_sec = fabsf(state->target_deg)
 			/ state->speed_deg_per_sec;
+		state->ease_out = false;
 		state->active = true;
 	}
 	if (state->paused)
@@ -112,13 +136,23 @@ void	anim_update(t_anim_state *state, t_render_scene *scene,
 	{
 		state->angle_deg = 0.0f;
 		state->active = false;
-		apply_move(cube, state->current);
-		geometry_sync(scene, cube);
-		if (fx != NULL)
-			fx_play_turn(fx);
+		if (state->current != MOVE_COUNT)
+		{
+			apply_move(cube, state->current);
+			geometry_sync(scene, cube);
+			if (fx != NULL)
+				fx_play_turn(fx);
+		}
 	}
 	else
-		state->angle_deg = state->target_deg * ease_in_out_cubic(frac);
+	{
+		if (state->ease_out)
+			eased = ease_out_cubic(frac);
+		else
+			eased = ease_in_out_cubic(frac);
+		state->angle_deg = state->from_deg
+			+ (state->target_deg - state->from_deg) * eased;
+	}
 }
 
 bool	anim_is_idle(const t_anim_state *state)
@@ -170,6 +204,36 @@ void	anim_flush(t_anim_state *state)
 	state->angle_deg = 0.0f;
 }
 
+void	anim_begin_from(t_anim_state *state, t_move move, float from,
+	float to)
+{
+	state->current = move;
+	state->from_deg = from;
+	state->target_deg = to;
+	state->elapsed_sec = 0.0f;
+	state->duration_sec = fmaxf(fabsf(to - from)
+			/ state->speed_deg_per_sec, ANIM_RELEASE_MIN_SEC);
+	state->ease_out = true;
+	state->paused = false;
+	state->active = true;
+}
+
+void	anim_begin_settle(t_anim_state *state, t_axis axis, int8_t layer,
+	float from)
+{
+	state->current = MOVE_COUNT;
+	state->settle_axis = axis;
+	state->settle_layer = layer;
+	state->from_deg = from;
+	state->target_deg = 0.0f;
+	state->elapsed_sec = 0.0f;
+	state->duration_sec = fmaxf(fabsf(from) / state->speed_deg_per_sec,
+			ANIM_RELEASE_MIN_SEC);
+	state->ease_out = true;
+	state->paused = false;
+	state->active = true;
+}
+
 t_active_turn	anim_get_active_turn(const t_anim_state *state)
 {
 	t_active_turn	turn;
@@ -180,8 +244,16 @@ t_active_turn	anim_get_active_turn(const t_anim_state *state)
 	turn.angle_deg = 0.0f;
 	if (state->active)
 	{
-		turn.axis = MOVE_AXIS[state->current].axis;
-		turn.layer = MOVE_AXIS[state->current].layer;
+		if (state->current == MOVE_COUNT)
+		{
+			turn.axis = state->settle_axis;
+			turn.layer = state->settle_layer;
+		}
+		else
+		{
+			turn.axis = MOVE_AXIS[state->current].axis;
+			turn.layer = MOVE_AXIS[state->current].layer;
+		}
 		turn.angle_deg = state->angle_deg;
 	}
 	return (turn);
@@ -192,7 +264,7 @@ size_t	anim_pending_count(const t_anim_state *state)
 	size_t	count;
 
 	count = (state->tail + ANIM_QUEUE_CAP - state->head) % ANIM_QUEUE_CAP;
-	if (state->active)
+	if (state->active && state->current != MOVE_COUNT)
 		count++;
 	return (count);
 }
@@ -205,7 +277,9 @@ t_move	anim_move_for_turn(t_axis axis, int8_t layer, float quarter_deg)
 	while (i < MOVE_COUNT)
 	{
 		if (MOVE_AXIS[i].axis == axis && MOVE_AXIS[i].layer == layer
-			&& MOVE_AXIS[i].quarter_deg == quarter_deg)
+			&& (MOVE_AXIS[i].quarter_deg == quarter_deg
+				|| (fabsf(quarter_deg) == 180.0f
+					&& fabsf(MOVE_AXIS[i].quarter_deg) == 180.0f)))
 			return ((t_move)i);
 		i++;
 	}

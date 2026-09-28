@@ -57,6 +57,7 @@ typedef struct s_app
 	bool				rounded_corners;
 	bool				auto_loop;
 	float				auto_loop_wait_sec;
+	bool				scrambling;
 	t_move				solution_moves[MAX_MOVES];
 	int					solution_move_count;
 	t_cube				solution_start_cube;

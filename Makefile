@@ -158,7 +158,18 @@ TH_SRCS		:=	$(TEST_DIR)/test_thistlethwaite.c $(SRC_DIR)/solve/thistlethwaite.c 
 				$(SRC_DIR)/cube/moves.c
 TH_OBJS		:=	$(TH_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-ALL_OBJS	:=	$(sort $(OBJS) $(MAIN_BONUS_OBJ) $(RENDER_OBJS) $(MV_OBJS) $(CB_OBJS) $(PR_OBJS) $(CO_OBJS) $(MT_OBJS) $(PU_OBJS) $(ID_OBJS) $(SO_OBJS) $(TH_OBJS))
+# Bonus-only, opt-in test (never part of $(TESTS)/`make test`): the
+# drag-turning math (docs/en/11-drag-review.md §6.1) lives in
+# src/render/, so this pulls in real raylib the same way `make bonus`
+# does, and the mandatory build/test invariant ("make test never
+# touches raylib and never fails because of it") stays intact by
+# keeping this out of TESTS entirely — see `test_bonus` below.
+DR_SRCS		:=	$(TEST_DIR)/test_drag.c $(RENDER_DIR)/input.c \
+				$(RENDER_DIR)/anim.c $(RENDER_DIR)/geometry.c \
+				$(RENDER_DIR)/fx.c $(SRC_DIR)/cube/cubie.c $(SRC_DIR)/cube/moves.c
+DR_OBJS		:=	$(DR_SRCS:%.c=$(OBJ_DIR)/%.o)
+
+ALL_OBJS	:=	$(sort $(OBJS) $(MAIN_BONUS_OBJ) $(RENDER_OBJS) $(MV_OBJS) $(CB_OBJS) $(PR_OBJS) $(CO_OBJS) $(MT_OBJS) $(PU_OBJS) $(ID_OBJS) $(SO_OBJS) $(TH_OBJS) $(DR_OBJS))
 
 # Progress-bar denominator: `make bonus` also compiles src/render/, `make`
 # alone never does — count accordingly so the bar actually reaches 100%
@@ -250,6 +261,7 @@ $(RAYLIB_LIB):
 # variable — only applies to objects built from under src/render/, leaves
 # every other compile rule untouched.
 $(OBJ_DIR)/$(RENDER_DIR)/%.o: CPPFLAGS += $(RAYLIB_CFLAGS)
+$(OBJ_DIR)/$(TEST_DIR)/test_drag.o: CPPFLAGS += $(RAYLIB_CFLAGS)
 
 # ==========================
 # Colours
@@ -357,6 +369,20 @@ test_solve: $(SO_OBJS)
 
 test_thistlethwaite: $(TH_OBJS)
 	@$(CC) $(CFLAGS) $(TH_OBJS) $(LDLIBS) -o $@
+
+# Opt-in only (docs/en/11-drag-review.md §6.1) — NOT part of `test`/
+# $(TESTS): `make test_bonus` builds raylib if needed, then this one
+# binary. Kept separate so a raylib-less environment (a 42 eval box
+# grading the mandatory part only) never has its plain `make test` fail
+# over a bonus-only test.
+test_drag: $(RAYLIB_DEP) $(DR_OBJS)
+	@$(CC) $(CFLAGS) $(DR_OBJS) $(LDLIBS_BONUS) -o $@
+
+test_bonus: test_drag
+	@printf "$(YELLOW)$(BOLD)\n  Running bonus-only unit tests...$(RESET)\n\n"
+	@printf "$(CYAN)  == test_drag ==$(RESET)\n"
+	@./test_drag || exit 1
+	@printf "$(GREEN)$(BOLD)\n  [All bonus tests passed]$(RESET)\n\n"
 
 # ==========================
 # Valgrind

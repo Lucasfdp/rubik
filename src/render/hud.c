@@ -7,49 +7,129 @@
 # define HUD_FONT_SIZE 20
 # define HUD_BAR_WIDTH 280
 # define HUD_BAR_HEIGHT 14
+# define HUD_PANEL_PAD 10
+# define HUD_PANEL_ROUNDNESS 0.25f
+# define HUD_PANEL_SEGMENTS 8
 
-static const Color	HUD_TEXT = {20, 20, 20, 255};
+static const Color	HUD_TEXT = {225, 225, 230, 255};
 static const Color	HUD_BAR_BG = {200, 200, 200, 255};
 static const Color	HUD_BAR_FG = {0, 158, 96, 255};
+static const Color	HUD_PANEL_BG = {10, 10, 14, 160};
+static const Color	HUD_SCRAMBLE_FG = {235, 170, 60, 255};
 
-/// @brief Draws the autoplay-only part: play/pause, speed, current move,
-///        and a "done/total" progress bar.
-static void	draw_autoplay(const t_anim_state *anim, int total_moves,
-	bool auto_loop)
+static const char	*AUTOPLAY_HINT =
+	"Space: pause  |  Right: step  |  Up/Down: speed  |  Esc: stop";
+static const char	*AUTO_LOOP_TEXT = "AUTO-LOOP demo running  |  A: stop";
+static const char	*MANUAL_HINT_1 =
+	"S: scramble  |  Z / Y: undo / redo  |  Enter: solve for me";
+static const char	*MANUAL_HINT_2 =
+	"U R F D L B to turn  |  hold Shift: ccw  |  hold 2: double turn";
+static const char	*MANUAL_HINT_3 =
+	"Left-drag a sticker: turn  |  circle a centre: turn face  |  "
+	"[ ]: scrub  |  \\: reverse solve";
+static const char	*MANUAL_HINT_4 =
+	"Right-drag/Arrows: orbit  |  wheel: zoom  |  5-8: views  |  "
+	"P: palette  |  C: corners  |  A: auto-loop";
+
+/// @brief Draws a semi-transparent dark rounded panel behind a HUD text
+///        block so light text stays legible over the 3D scene.
+static void	draw_panel(int x, int y, int width, int height)
 {
-	char	line[96];
-	char	move_text[4];
-	int		done;
-	int		y;
+	DrawRectangleRounded((Rectangle){(float)x, (float)y, (float)width,
+		(float)height}, HUD_PANEL_ROUNDNESS, HUD_PANEL_SEGMENTS,
+		HUD_PANEL_BG);
+}
+
+/// @brief Draws the autoplay-only part: play/pause, speed, a
+///        scrambling/solving phase label, current move, and a
+///        "done/total" progress bar scoped to whichever phase is
+///        currently queued (never a stale total from the other phase).
+static void	draw_autoplay(const t_anim_state *anim, int total_moves,
+	bool auto_loop, bool scrambling)
+{
+	char		status_line[96];
+	char		move_line[32];
+	char		count_line[32];
+	char		move_text[4];
+	const char	*phase_label;
+	Color		phase_color;
+	int			done;
+	int			y;
+	int			top_w;
+	int			top_bottom;
+	int			w;
+	int			bottom_y;
+	int			loop_w;
+	int			loop_x;
 
 	y = HUD_MARGIN;
-	snprintf(line, sizeof(line), "%s  |  speed %.0f deg/s",
+	snprintf(status_line, sizeof(status_line), "%s  |  speed %.0f deg/s",
 		anim->paused ? "PAUSED" : "PLAYING", (double)anim->speed_deg_per_sec);
-	DrawText(line, HUD_MARGIN, y, HUD_FONT_SIZE, HUD_TEXT);
-	y += HUD_FONT_SIZE + 6;
+	top_w = MeasureText(status_line, HUD_FONT_SIZE);
+	phase_label = scrambling ? "SCRAMBLING" : "SOLVING";
+	phase_color = scrambling ? HUD_SCRAMBLE_FG : HUD_BAR_FG;
+	w = MeasureText(phase_label, HUD_FONT_SIZE);
+	if (w > top_w)
+		top_w = w;
+	top_bottom = y + HUD_FONT_SIZE + 6 + HUD_FONT_SIZE;
+	move_line[0] = '\0';
+	done = 0;
 	if (anim->active)
 	{
 		format_moves(&anim->current, 1, move_text);
-		snprintf(line, sizeof(line), "move: %s", move_text);
-		DrawText(line, HUD_MARGIN, y, HUD_FONT_SIZE, HUD_TEXT);
+		snprintf(move_line, sizeof(move_line), "move: %s", move_text);
+		w = MeasureText(move_line, HUD_FONT_SIZE);
+		if (w > top_w)
+			top_w = w;
+		top_bottom += 6 + HUD_FONT_SIZE;
+	}
+	count_line[0] = '\0';
+	if (total_moves > 0)
+	{
+		done = total_moves - (int)anim_pending_count(anim);
+		snprintf(count_line, sizeof(count_line), "%d / %d", done,
+			total_moves);
+		w = MeasureText(count_line, HUD_FONT_SIZE);
+		if (w > top_w)
+			top_w = w;
+		if (HUD_BAR_WIDTH > top_w)
+			top_w = HUD_BAR_WIDTH;
+		top_bottom += 6 + HUD_FONT_SIZE + 4 + HUD_BAR_HEIGHT;
+	}
+	draw_panel(HUD_MARGIN - HUD_PANEL_PAD, HUD_MARGIN - HUD_PANEL_PAD,
+		top_w + HUD_PANEL_PAD * 2,
+		top_bottom - HUD_MARGIN + HUD_PANEL_PAD * 2);
+	DrawText(status_line, HUD_MARGIN, y, HUD_FONT_SIZE, HUD_TEXT);
+	y += HUD_FONT_SIZE + 6;
+	DrawText(phase_label, HUD_MARGIN, y, HUD_FONT_SIZE, phase_color);
+	y += HUD_FONT_SIZE + 6;
+	if (anim->active)
+	{
+		DrawText(move_line, HUD_MARGIN, y, HUD_FONT_SIZE, HUD_TEXT);
 		y += HUD_FONT_SIZE + 6;
 	}
 	if (total_moves > 0)
 	{
-		done = total_moves - (int)anim_pending_count(anim);
-		snprintf(line, sizeof(line), "%d / %d", done, total_moves);
-		DrawText(line, HUD_MARGIN, y, HUD_FONT_SIZE, HUD_TEXT);
+		DrawText(count_line, HUD_MARGIN, y, HUD_FONT_SIZE, HUD_TEXT);
 		DrawRectangle(HUD_MARGIN, y + HUD_FONT_SIZE + 4, HUD_BAR_WIDTH,
 			HUD_BAR_HEIGHT, HUD_BAR_BG);
 		DrawRectangle(HUD_MARGIN, y + HUD_FONT_SIZE + 4,
 			HUD_BAR_WIDTH * done / total_moves, HUD_BAR_HEIGHT, HUD_BAR_FG);
 	}
 	if (auto_loop)
-		DrawText("AUTO-LOOP demo running  |  A: stop",
-			HUD_MARGIN, y, HUD_FONT_SIZE, HUD_BAR_FG);
-	DrawText("Space: pause  |  Right: step  |  Up/Down: speed  |  Esc: stop",
-		HUD_MARGIN, GetScreenHeight() - HUD_MARGIN - HUD_FONT_SIZE,
-		HUD_FONT_SIZE, HUD_TEXT);
+	{
+		loop_w = MeasureText(AUTO_LOOP_TEXT, HUD_FONT_SIZE);
+		loop_x = GetScreenWidth() - HUD_MARGIN - loop_w;
+		draw_panel(loop_x - HUD_PANEL_PAD, HUD_MARGIN - HUD_PANEL_PAD,
+			loop_w + HUD_PANEL_PAD * 2, HUD_FONT_SIZE + HUD_PANEL_PAD * 2);
+		DrawText(AUTO_LOOP_TEXT, loop_x, HUD_MARGIN, HUD_FONT_SIZE,
+			HUD_BAR_FG);
+	}
+	bottom_y = GetScreenHeight() - HUD_MARGIN - HUD_FONT_SIZE;
+	draw_panel(HUD_MARGIN - HUD_PANEL_PAD, bottom_y - HUD_PANEL_PAD,
+		MeasureText(AUTOPLAY_HINT, HUD_FONT_SIZE) + HUD_PANEL_PAD * 2,
+		HUD_FONT_SIZE + HUD_PANEL_PAD * 2);
+	DrawText(AUTOPLAY_HINT, HUD_MARGIN, bottom_y, HUD_FONT_SIZE, HUD_TEXT);
 }
 
 /// @brief Draws the manual-only part: mode label, the practice-session
@@ -58,37 +138,58 @@ static void	draw_manual(double elapsed_sec, int move_count)
 {
 	char	line[96];
 	double	tps;
-	int		bottom;
+	int		top_w;
+	int		w;
+	int		hint_w;
+	int		line1_y;
+	int		line2_y;
+	int		line3_y;
+	int		line4_y;
 
-	DrawText("MANUAL", HUD_MARGIN, HUD_MARGIN, HUD_FONT_SIZE, HUD_TEXT);
 	tps = 0.0;
 	if (elapsed_sec > 0.0)
 		tps = (double)move_count / elapsed_sec;
 	snprintf(line, sizeof(line), "time %.1fs  |  moves %d  |  tps %.2f",
 		elapsed_sec, move_count, tps);
+	top_w = MeasureText("MANUAL", HUD_FONT_SIZE);
+	w = MeasureText(line, HUD_FONT_SIZE);
+	if (w > top_w)
+		top_w = w;
+	draw_panel(HUD_MARGIN - HUD_PANEL_PAD, HUD_MARGIN - HUD_PANEL_PAD,
+		top_w + HUD_PANEL_PAD * 2,
+		HUD_FONT_SIZE + 6 + HUD_FONT_SIZE + HUD_PANEL_PAD * 2);
+	DrawText("MANUAL", HUD_MARGIN, HUD_MARGIN, HUD_FONT_SIZE, HUD_TEXT);
 	DrawText(line, HUD_MARGIN, HUD_MARGIN + HUD_FONT_SIZE + 6,
 		HUD_FONT_SIZE, HUD_TEXT);
-	bottom = GetScreenHeight() - HUD_MARGIN - HUD_FONT_SIZE;
-	DrawText("Right-drag: orbit  |  wheel: zoom  |  5-8: views  |  "
-		"P: palette  |  C: corners  |  A: auto-loop",
-		HUD_MARGIN, bottom, HUD_FONT_SIZE, HUD_TEXT);
-	bottom -= HUD_FONT_SIZE + 4;
-	DrawText("Left-drag a sticker: turn  |  [ ]: scrub  |  \\: reverse solve",
-		HUD_MARGIN, bottom, HUD_FONT_SIZE, HUD_TEXT);
-	bottom -= HUD_FONT_SIZE + 4;
-	DrawText(
-		"U R F D L B to turn  |  hold Shift: ccw  |  hold 2: double turn",
-		HUD_MARGIN, bottom, HUD_FONT_SIZE, HUD_TEXT);
-	bottom -= HUD_FONT_SIZE + 4;
-	DrawText("S: scramble  |  Z / Y: undo / redo  |  Enter: solve for me",
-		HUD_MARGIN, bottom, HUD_FONT_SIZE, HUD_TEXT);
+	line4_y = GetScreenHeight() - HUD_MARGIN - HUD_FONT_SIZE;
+	line3_y = line4_y - (HUD_FONT_SIZE + 4);
+	line2_y = line3_y - (HUD_FONT_SIZE + 4);
+	line1_y = line2_y - (HUD_FONT_SIZE + 4);
+	hint_w = MeasureText(MANUAL_HINT_4, HUD_FONT_SIZE);
+	w = MeasureText(MANUAL_HINT_3, HUD_FONT_SIZE);
+	if (w > hint_w)
+		hint_w = w;
+	w = MeasureText(MANUAL_HINT_2, HUD_FONT_SIZE);
+	if (w > hint_w)
+		hint_w = w;
+	w = MeasureText(MANUAL_HINT_1, HUD_FONT_SIZE);
+	if (w > hint_w)
+		hint_w = w;
+	draw_panel(HUD_MARGIN - HUD_PANEL_PAD, line1_y - HUD_PANEL_PAD,
+		hint_w + HUD_PANEL_PAD * 2,
+		(line4_y + HUD_FONT_SIZE) - line1_y + HUD_PANEL_PAD * 2);
+	DrawText(MANUAL_HINT_4, HUD_MARGIN, line4_y, HUD_FONT_SIZE, HUD_TEXT);
+	DrawText(MANUAL_HINT_3, HUD_MARGIN, line3_y, HUD_FONT_SIZE, HUD_TEXT);
+	DrawText(MANUAL_HINT_2, HUD_MARGIN, line2_y, HUD_FONT_SIZE, HUD_TEXT);
+	DrawText(MANUAL_HINT_1, HUD_MARGIN, line1_y, HUD_FONT_SIZE, HUD_TEXT);
 }
 
 void	hud_draw(const t_anim_state *anim, t_render_mode mode,
-	int total_moves, double elapsed_sec, int move_count, bool auto_loop)
+	int total_moves, double elapsed_sec, int move_count, bool auto_loop,
+	bool scrambling)
 {
 	if (mode == MODE_AUTOPLAY)
-		draw_autoplay(anim, total_moves, auto_loop);
+		draw_autoplay(anim, total_moves, auto_loop, scrambling);
 	else
 		draw_manual(elapsed_sec, move_count);
 }
