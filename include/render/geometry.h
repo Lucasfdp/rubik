@@ -13,6 +13,13 @@
 /// 1 so a visible seam shows between cubies with no extra draw call.
 # define CUBIE_SPACING 1.05f
 
+/// World-unit size of a cubie's solid body (draw.c's DrawCube edge
+/// length). Shared here, not kept private to draw.c, so input.c's
+/// raycasting (Phase 6, docs/en/03b-3d-implementation-plan.md section
+/// 8.3) hit-tests the exact same box draw.c renders instead of a second,
+/// hand-copied magic number.
+# define CUBIE_BODY_SIZE 0.94f
+
 /// World axis, used both for a move's turn axis (MOVE_AXIS in anim.c) and
 /// for describing which layer is transiently mid-turn (t_active_turn
 /// below). Axis convention locked in docs/en/03b-3d-implementation-plan.md
@@ -67,6 +74,26 @@ typedef struct s_active_turn
 	float	angle_deg;
 }	t_active_turn;
 
+/// One playable colour scheme: the 6 face colours geometry_sync() paints
+/// stickers from (docs/en/03b-3d-implementation-plan.md section 9.2).
+/// Field order matches that doc's own draft, not t_render_face's enum
+/// order — rebuild_color_tables() (geometry.c) is what maps between them.
+typedef struct s_palette
+{
+	Color	u;
+	Color	d;
+	Color	f;
+	Color	b;
+	Color	r;
+	Color	l;
+}	t_palette;
+
+/// The two built-in schemes (geometry.c): WCA classic, and a
+/// deliberately drastic alternate that changes all 6 faces (not just
+/// some of them).
+extern const t_palette	PALETTE_CLASSIC;
+extern const t_palette	PALETTE_VIVID;
+
 /// @brief One-time setup: assigns each of the 26 slots its fixed lattice
 ///        position and which of the 6 directions carry a sticker, then
 ///        calls geometry_sync() against SOLVED_CUBE.
@@ -78,5 +105,16 @@ void	geometry_init(t_render_scene *scene);
 ///        incrementally updated, so there is no bookkeeping path that
 ///        can drift out of sync with cube.
 void	geometry_sync(t_render_scene *scene, const t_cube *cube);
+
+/// @brief Makes `palette` the active one — every future geometry_sync()
+///        paints from it. Does not repaint by itself: call
+///        geometry_sync() again right after to actually see it.
+void	geometry_set_palette(const t_palette *palette);
+
+/// @brief Switches to the other built-in palette and makes it active
+///        (same caveat as geometry_set_palette()).
+///
+/// @return The newly active palette's short name, for the HUD.
+const char	*geometry_palette_cycle(void);
 
 #endif

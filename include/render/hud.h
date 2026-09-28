@@ -1,6 +1,7 @@
 #ifndef RENDER_HUD_H
 # define RENDER_HUD_H
 
+# include <stdbool.h>
 # include "render/anim.h"
 # include "render/input.h"
 
@@ -18,7 +19,11 @@
 /// @param elapsed_sec Manual-mode practice timer, in seconds (0 until
 ///                    the first manual move; frozen once solved).
 /// @param move_count  Manual-mode move counter since the last scramble.
+/// @param auto_loop   True while Phase 7 §9.6's auto-loop demo is on —
+///                    shown so it's obvious the app is driving itself
+///                    and L (not just Esc) turns it back off.
 void	hud_draw(const t_anim_state *anim, t_render_mode mode,
-			int total_moves, double elapsed_sec, int move_count);
+			int total_moves, double elapsed_sec, int move_count,
+			bool auto_loop);
 
 #endif

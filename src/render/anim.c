@@ -88,7 +88,7 @@ bool	anim_push(t_anim_state *state, t_move move)
 }
 
 void	anim_update(t_anim_state *state, t_render_scene *scene,
-	t_cube *cube, float dt)
+	t_cube *cube, t_fx_state *fx, float dt)
 {
 	float	frac;
 
@@ -114,6 +114,8 @@ void	anim_update(t_anim_state *state, t_render_scene *scene,
 		state->active = false;
 		apply_move(cube, state->current);
 		geometry_sync(scene, cube);
+		if (fx != NULL)
+			fx_play_turn(fx);
 	}
 	else
 		state->angle_deg = state->target_deg * ease_in_out_cubic(frac);
@@ -130,14 +132,14 @@ void	anim_toggle_pause(t_anim_state *state)
 }
 
 void	anim_step_one(t_anim_state *state, t_render_scene *scene,
-	t_cube *cube)
+	t_cube *cube, t_fx_state *fx)
 {
 	if (!state->active && state->head == state->tail)
 		return ;
 	state->paused = false;
 	if (!state->active)
-		anim_update(state, scene, cube, 0.0f);
-	anim_update(state, scene, cube,
+		anim_update(state, scene, cube, fx, 0.0f);
+	anim_update(state, scene, cube, fx,
 		state->duration_sec - state->elapsed_sec + 0.001f);
 	state->paused = true;
 }
@@ -148,10 +150,24 @@ void	anim_set_speed(t_anim_state *state, float deg_per_sec)
 			ANIM_MAX_SPEED);
 }
 
+/// @brief Full stop: drops every queued move AND cancels whatever move
+///        is currently mid-flight, resetting it to idle. Clearing only
+///        head/tail left `active`/`angle_deg` stuck from an interrupted
+///        turn, which kept anim_is_idle() false forever (blocking every
+///        manual key) and kept drawing that layer's cubies frozen at a
+///        partial angle -- the "stop mid-turn and everything breaks" bug.
+///        The cube's logical state is untouched either way: an
+///        interrupted move never reached the apply_move() commit in
+///        anim_update(), so there is nothing to undo, only the
+///        in-progress visual to cancel.
 void	anim_flush(t_anim_state *state)
 {
 	state->head = 0;
 	state->tail = 0;
+	state->active = false;
+	state->paused = false;
+	state->elapsed_sec = 0.0f;
+	state->angle_deg = 0.0f;
 }
 
 t_active_turn	anim_get_active_turn(const t_anim_state *state)
@@ -179,4 +195,19 @@ size_t	anim_pending_count(const t_anim_state *state)
 	if (state->active)
 		count++;
 	return (count);
+}
+
+t_move	anim_move_for_turn(t_axis axis, int8_t layer, float quarter_deg)
+{
+	int	i;
+
+	i = 0;
+	while (i < MOVE_COUNT)
+	{
+		if (MOVE_AXIS[i].axis == axis && MOVE_AXIS[i].layer == layer
+			&& MOVE_AXIS[i].quarter_deg == quarter_deg)
+			return ((t_move)i);
+		i++;
+	}
+	return (MOVE_COUNT);
 }

@@ -47,21 +47,34 @@ void	draw_lighting_update_camera(t_render_lighting *lighting,
 ///        before CloseWindow(). No-op if ->loaded is false.
 void	draw_lighting_unload(t_render_lighting *lighting);
 
-/// @brief Draws every one of the 26 cubies at its fixed lattice position,
-///        plastic body plus one coloured sticker quad per populated
-///        face[] direction, lit by `lighting` when it is loaded. Must be
-///        called between BeginMode3D()/EndMode3D() (it draws 3D
-///        geometry, not a HUD overlay).
+/// @brief Draws every one of the 26 cubies at its fixed lattice
+///        position, plastic body plus one coloured sticker quad per
+///        populated face[] direction, lit by `lighting` when it is
+///        loaded. Must be called between BeginMode3D()/EndMode3D() (it
+///        draws 3D geometry, not a HUD overlay).
 ///
-/// @param scene    The 26 cubies to draw.
-/// @param turn     When turn->active is true, every cubie whose fixed
-///                 slot sits in turn->axis/turn->layer is drawn rotated
-///                 by an extra turn->angle_deg around that world axis
-///                 before its normal translation — the live, uncommitted
-///                 spin of a move in progress. Pass NULL (or
-///                 ->active == false) to draw everything at rest.
-/// @param lighting Current lighting state from draw_lighting_load().
+///        (Phase 7 §9.5's ground shadow was tried and removed: it sat
+///        under the cube densely enough to block the view when orbiting
+///        to look at the bottom face, which cost more than the visual
+///        polish was worth.)
+///
+/// @param scene           The 26 cubies to draw.
+/// @param turn            When turn->active is true, every cubie whose
+///                        fixed slot sits in turn->axis/turn->layer is
+///                        drawn rotated by an extra turn->angle_deg
+///                        around that world axis before its normal
+///                        translation — the live, uncommitted spin of a
+///                        move in progress (from anim.c OR input.c's
+///                        drag — draw.c never needs to know which). Pass
+///                        NULL (or ->active == false) to draw everything
+///                        at rest.
+/// @param lighting        Current lighting state from
+///                        draw_lighting_load().
+/// @param rounded_corners Phase 7 §9.4's cheapest rounding trick: small
+///                        body-coloured fillet spheres over each cubie's
+///                        8 corners, on top of the normal sharp body.
+///                        false draws the Phase 0-6 sharp-cornered look.
 void	draw_scene(const t_render_scene *scene, const t_active_turn *turn,
-			const t_render_lighting *lighting);
+			const t_render_lighting *lighting, bool rounded_corners);
 
 #endif

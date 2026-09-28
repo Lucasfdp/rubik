@@ -4,7 +4,7 @@
 #include "render/rlights.h"
 #include "render/draw.h"
 
-# define BODY_SIZE 0.94f
+# define BODY_SIZE CUBIE_BODY_SIZE
 # define STICKER_SIZE 0.78f
 # define STICKER_DEPTH 0.02f
 # define STICKER_OFFSET (BODY_SIZE / 2.0f + 0.006f)
@@ -12,8 +12,18 @@
 # define LIGHTING_FS_120 "assets/shaders/glsl120/lighting.fs"
 # define LIGHTING_VS_330 "assets/shaders/glsl330/lighting.vs"
 # define LIGHTING_FS_330 "assets/shaders/glsl330/lighting.fs"
+# define CORNER_FILLET_RADIUS 0.10f
 
 static const Color	BODY_COLOR = {30, 30, 30, 255};
+
+/// Phase 7 §9.4's fillet-sphere offsets: the 8 sign combinations of a
+/// cubie's corners, in unit-cube coordinates.
+static const Vector3	CORNER_SIGNS[8] = {
+	{-1.0f, -1.0f, -1.0f}, {-1.0f, -1.0f, 1.0f},
+	{-1.0f, 1.0f, -1.0f}, {-1.0f, 1.0f, 1.0f},
+	{1.0f, -1.0f, -1.0f}, {1.0f, -1.0f, 1.0f},
+	{1.0f, 1.0f, -1.0f}, {1.0f, 1.0f, 1.0f},
+};
 
 /// @brief The outward unit vector for one of the 6 sticker directions,
 ///        under this project's axis convention (+X=R, +Y=U, +Z=F).
@@ -106,6 +116,28 @@ void	draw_lighting_unload(t_render_lighting *lighting)
 	lighting->loaded = false;
 }
 
+/// @brief Phase 7 §9.4's cheapest rounding trick: a small body-coloured
+///        sphere over each of the cube's 8 corners, drawn on top of the
+///        sharp wireframe outline so the silhouette reads as rounded
+///        with no custom beveled mesh to build or load.
+static void	draw_corner_fillets(Vector3 center)
+{
+	float	half;
+	int		i;
+	Vector3	pos;
+
+	half = BODY_SIZE / 2.0f - CORNER_FILLET_RADIUS * 0.6f;
+	i = 0;
+	while (i < 8)
+	{
+		pos = (Vector3){center.x + CORNER_SIGNS[i].x * half,
+			center.y + CORNER_SIGNS[i].y * half,
+			center.z + CORNER_SIGNS[i].z * half};
+		DrawSphere(pos, CORNER_FILLET_RADIUS, BODY_COLOR);
+		i++;
+	}
+}
+
 /// @brief Draws one cubie's dark plastic body plus one coloured sticker
 ///        quad per populated face[] direction, centred at `center`
 ///        (world space — the caller has already applied any transient
@@ -114,7 +146,7 @@ void	draw_lighting_unload(t_render_lighting *lighting)
 ///        loaded; the wireframe edge stays a flat, unlit outline either
 ///        way — a wireframe has no normals for the shader to light.
 static void	draw_cubie(const t_render_cubie *cubie, Vector3 center,
-	const t_render_lighting *lighting)
+	const t_render_lighting *lighting, bool rounded_corners)
 {
 	int		face;
 	Vector3	normal;
@@ -139,6 +171,8 @@ static void	draw_cubie(const t_render_cubie *cubie, Vector3 center,
 	if (lighting->loaded)
 		EndShaderMode();
 	DrawCubeWires(center, BODY_SIZE, BODY_SIZE, BODY_SIZE, DARKGRAY);
+	if (rounded_corners)
+		draw_corner_fillets(center);
 }
 
 /// @brief True if this cubie's fixed slot sits on the layer a live turn
@@ -164,13 +198,13 @@ static Vector3	axis_vector(t_axis axis)
 }
 
 void	draw_scene(const t_render_scene *scene, const t_active_turn *turn,
-	const t_render_lighting *lighting)
+	const t_render_lighting *lighting, bool rounded_corners)
 {
-	int				i;
+	int						i;
 	const t_render_cubie	*cubie;
-	Vector3			center;
-	Vector3			axis;
-	bool			spinning;
+	Vector3					center;
+	Vector3					axis;
+	bool					spinning;
 
 	i = 0;
 	while (i < RENDER_CUBIE_COUNT)
@@ -185,11 +219,11 @@ void	draw_scene(const t_render_scene *scene, const t_active_turn *turn,
 			axis = axis_vector(turn->axis);
 			rlPushMatrix();
 			rlRotatef(turn->angle_deg, axis.x, axis.y, axis.z);
-			draw_cubie(cubie, center, lighting);
+			draw_cubie(cubie, center, lighting, rounded_corners);
 			rlPopMatrix();
 		}
 		else
-			draw_cubie(cubie, center, lighting);
+			draw_cubie(cubie, center, lighting, rounded_corners);
 		i++;
 	}
 }

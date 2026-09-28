@@ -14,7 +14,8 @@ static const Color	HUD_BAR_FG = {0, 158, 96, 255};
 
 /// @brief Draws the autoplay-only part: play/pause, speed, current move,
 ///        and a "done/total" progress bar.
-static void	draw_autoplay(const t_anim_state *anim, int total_moves)
+static void	draw_autoplay(const t_anim_state *anim, int total_moves,
+	bool auto_loop)
 {
 	char	line[96];
 	char	move_text[4];
@@ -43,14 +44,16 @@ static void	draw_autoplay(const t_anim_state *anim, int total_moves)
 		DrawRectangle(HUD_MARGIN, y + HUD_FONT_SIZE + 4,
 			HUD_BAR_WIDTH * done / total_moves, HUD_BAR_HEIGHT, HUD_BAR_FG);
 	}
+	if (auto_loop)
+		DrawText("AUTO-LOOP demo running  |  A: stop",
+			HUD_MARGIN, y, HUD_FONT_SIZE, HUD_BAR_FG);
 	DrawText("Space: pause  |  Right: step  |  Up/Down: speed  |  Esc: stop",
 		HUD_MARGIN, GetScreenHeight() - HUD_MARGIN - HUD_FONT_SIZE,
 		HUD_FONT_SIZE, HUD_TEXT);
 }
 
 /// @brief Draws the manual-only part: mode label, the practice-session
-///        timer/move-counter/TPS line, and three lines of keybinding
-///        hints (turning, extras, camera), bottom-up.
+///        timer/move-counter/TPS line, and keybinding hints, bottom-up.
 static void	draw_manual(double elapsed_sec, int move_count)
 {
 	char	line[96];
@@ -66,7 +69,11 @@ static void	draw_manual(double elapsed_sec, int move_count)
 	DrawText(line, HUD_MARGIN, HUD_MARGIN + HUD_FONT_SIZE + 6,
 		HUD_FONT_SIZE, HUD_TEXT);
 	bottom = GetScreenHeight() - HUD_MARGIN - HUD_FONT_SIZE;
-	DrawText("Right-drag: orbit camera  |  wheel: zoom",
+	DrawText("Right-drag: orbit  |  wheel: zoom  |  5-8: views  |  "
+		"P: palette  |  C: corners  |  A: auto-loop",
+		HUD_MARGIN, bottom, HUD_FONT_SIZE, HUD_TEXT);
+	bottom -= HUD_FONT_SIZE + 4;
+	DrawText("Left-drag a sticker: turn  |  [ ]: scrub  |  \\: reverse solve",
 		HUD_MARGIN, bottom, HUD_FONT_SIZE, HUD_TEXT);
 	bottom -= HUD_FONT_SIZE + 4;
 	DrawText(
@@ -78,10 +85,10 @@ static void	draw_manual(double elapsed_sec, int move_count)
 }
 
 void	hud_draw(const t_anim_state *anim, t_render_mode mode,
-	int total_moves, double elapsed_sec, int move_count)
+	int total_moves, double elapsed_sec, int move_count, bool auto_loop)
 {
 	if (mode == MODE_AUTOPLAY)
-		draw_autoplay(anim, total_moves);
+		draw_autoplay(anim, total_moves, auto_loop);
 	else
 		draw_manual(elapsed_sec, move_count);
 }

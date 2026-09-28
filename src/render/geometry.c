@@ -10,10 +10,22 @@ static const Color	BLUE_C = {0, 81, 186, 255};
 static const Color	RED_C = {196, 30, 58, 255};
 static const Color	ORANGE_C = {255, 88, 0, 255};
 
+/// Phase 7 §9.2's second scheme (PALETTE_VIVID): deliberately NOT a
+/// subtle variation — every one of the 6 faces gets a different hue from
+/// PALETTE_CLASSIC, including U/D/L, which the first cut of this palette
+/// left unchanged (feedback: a palette switch should be obvious on every
+/// face, not just some of them).
+static const Color	VIVID_U = {255, 20, 147, 255};
+static const Color	VIVID_D = {155, 0, 255, 255};
+static const Color	VIVID_F = {160, 255, 0, 255};
+static const Color	VIVID_B = {0, 191, 255, 255};
+static const Color	VIVID_R = {255, 105, 0, 255};
+static const Color	VIVID_L = {0, 200, 180, 255};
+
 /// Fixed lattice position of each corner slot, one entry per t_corner.
 /// Derived mechanically from the slot's own name letters (U/D -> y,
-/// R/L -> x, F/B -> z) under this doc's axis convention (+X=R, +Y=U,
-/// +Z=F) — see geometry.h's t_axis comment.
+/// R/L -> x, F/B -> z) under this doc's axis convention (+X -> R, +Y ->
+/// U, +Z -> F) — see geometry.h's t_axis comment.
 static const int8_t	CORNER_POS[CORNER_COUNT][3] = {
 	[CORNER_URF] = {1, 1, 1},
 	[CORNER_UFL] = {-1, 1, 1},
@@ -50,11 +62,13 @@ static const int8_t	CENTER_POS[RENDER_FACE_COUNT][3] = {
 };
 
 /// Each slot's visible directions, in the SAME order as its name's
-/// letters (e.g. "URF" -> up, right, front). CORNER_COLORS below lists
-/// each PIECE's colours in that same per-name letter order, so colour k
-/// always belongs with direction k here — that pairing, plus the
-/// twist/flip rotation in geometry_sync(), is the entire colour
-/// algorithm.
+/// letters (e.g. "URF" -> up, right, front). Before Phase 7, CORNER_
+/// COLORS/EDGE_COLORS below listed each PIECE's colours in that same
+/// per-name letter order as a literal table; colour k always belonged
+/// with direction k here, which is exactly what let Phase 7 §9.2 replace
+/// that literal table with CENTER_COLORS[CORNER_DIRS[piece][k]] instead
+/// (rebuild_color_tables() below) — checked by hand against every one of
+/// the old table's entries before it was removed.
 static const t_render_face	CORNER_DIRS[CORNER_COUNT][3] = {
 	[CORNER_URF] = {FACE_UP, FACE_RIGHT, FACE_FRONT},
 	[CORNER_UFL] = {FACE_UP, FACE_FRONT, FACE_LEFT},
@@ -81,56 +95,86 @@ static const t_render_face	EDGE_DIRS[EDGE_COUNT][2] = {
 	[EDGE_BR] = {FACE_BACK, FACE_RIGHT},
 };
 
-/// Indexed by t_corner. Each piece's 3 sticker colours, listed in the
-/// same per-name letter order as CORNER_DIRS above (e.g. URF: white
-/// first because U is the piece's own U/D-type sticker, per
-/// docs/en/02a-cube-notation.md section 4).
-///
-/// Verified by simulation, not by eye: a throwaway script modelled the 26
-/// cubies as real 3D points with rotating stickers, replayed 5,000
-/// random moves through both that physical model and cube.h's own
-/// corner_perm/corner_orient bookkeeping, and compared the two — the
-/// "rotate a piece's colour list RIGHT by its orientation" rule in
-/// geometry_sync() below is the one that reproduces the physical model
-/// exactly (0 mismatches over the whole run); a left rotation does not.
-static const Color	CORNER_COLORS[CORNER_COUNT][3] = {
-	[CORNER_URF] = {WHITE_C, RED_C, GREEN_C},
-	[CORNER_UFL] = {WHITE_C, GREEN_C, ORANGE_C},
-	[CORNER_ULB] = {WHITE_C, ORANGE_C, BLUE_C},
-	[CORNER_UBR] = {WHITE_C, BLUE_C, RED_C},
-	[CORNER_DFR] = {YELLOW_C, GREEN_C, RED_C},
-	[CORNER_DLF] = {YELLOW_C, ORANGE_C, GREEN_C},
-	[CORNER_DBL] = {YELLOW_C, BLUE_C, ORANGE_C},
-	[CORNER_DRB] = {YELLOW_C, RED_C, BLUE_C},
+/// The two built-in schemes (Phase 7 §9.2). Field order (u, d, f, b, r,
+/// l) matches the design doc's own draft struct literal.
+const t_palette	PALETTE_CLASSIC = {
+	.u = WHITE_C, .d = YELLOW_C, .f = GREEN_C,
+	.b = BLUE_C, .r = RED_C, .l = ORANGE_C,
 };
 
-/// Indexed by t_edge, same per-name letter order as EDGE_DIRS. Same
-/// simulation as CORNER_COLORS verified this table plus a right
-/// rotation (equivalently, for a 2-entry list, a plain swap when
-/// flip == 1).
-static const Color	EDGE_COLORS[EDGE_COUNT][2] = {
-	[EDGE_UR] = {WHITE_C, RED_C},
-	[EDGE_UF] = {WHITE_C, GREEN_C},
-	[EDGE_UL] = {WHITE_C, ORANGE_C},
-	[EDGE_UB] = {WHITE_C, BLUE_C},
-	[EDGE_DR] = {YELLOW_C, RED_C},
-	[EDGE_DF] = {YELLOW_C, GREEN_C},
-	[EDGE_DL] = {YELLOW_C, ORANGE_C},
-	[EDGE_DB] = {YELLOW_C, BLUE_C},
-	[EDGE_FR] = {GREEN_C, RED_C},
-	[EDGE_FL] = {GREEN_C, ORANGE_C},
-	[EDGE_BL] = {BLUE_C, ORANGE_C},
-	[EDGE_BR] = {BLUE_C, RED_C},
+const t_palette	PALETTE_VIVID = {
+	.u = VIVID_U, .d = VIVID_D, .f = VIVID_F,
+	.b = VIVID_B, .r = VIVID_R, .l = VIVID_L,
 };
 
-static const Color	CENTER_COLORS[RENDER_FACE_COUNT] = {
-	[FACE_UP] = WHITE_C,
-	[FACE_DOWN] = YELLOW_C,
-	[FACE_RIGHT] = RED_C,
-	[FACE_LEFT] = ORANGE_C,
-	[FACE_FRONT] = GREEN_C,
-	[FACE_BACK] = BLUE_C,
-};
+/// geometry_sync() reads these three exactly as before Phase 7 — the
+/// only change is that they are no longer literal, they are GENERATED
+/// from whichever t_palette is active (rebuild_color_tables() below), so
+/// a palette switch is one rebuild instead of two hand-edited tables
+/// that could disagree.
+static Color		CENTER_COLORS[RENDER_FACE_COUNT];
+static Color		CORNER_COLORS[CORNER_COUNT][3];
+static Color		EDGE_COLORS[EDGE_COUNT][2];
+static t_palette	g_active_palette;
+static int			g_palette_index;
+
+/// @brief Regenerates CENTER_COLORS/CORNER_COLORS/EDGE_COLORS from
+///        g_active_palette. CORNER_DIRS/EDGE_DIRS above already say
+///        which face each colour slot belongs to — exactly what
+///        CENTER_COLORS is keyed on too, so CORNER_COLORS[p][k] is just
+///        CENTER_COLORS[CORNER_DIRS[p][k]] (same idea for edges).
+static void	rebuild_color_tables(void)
+{
+	int	i;
+	int	k;
+
+	CENTER_COLORS[FACE_UP] = g_active_palette.u;
+	CENTER_COLORS[FACE_DOWN] = g_active_palette.d;
+	CENTER_COLORS[FACE_RIGHT] = g_active_palette.r;
+	CENTER_COLORS[FACE_LEFT] = g_active_palette.l;
+	CENTER_COLORS[FACE_FRONT] = g_active_palette.f;
+	CENTER_COLORS[FACE_BACK] = g_active_palette.b;
+	i = 0;
+	while (i < CORNER_COUNT)
+	{
+		k = 0;
+		while (k < 3)
+		{
+			CORNER_COLORS[i][k] = CENTER_COLORS[CORNER_DIRS[i][k]];
+			k++;
+		}
+		i++;
+	}
+	i = 0;
+	while (i < EDGE_COUNT)
+	{
+		k = 0;
+		while (k < 2)
+		{
+			EDGE_COLORS[i][k] = CENTER_COLORS[EDGE_DIRS[i][k]];
+			k++;
+		}
+		i++;
+	}
+}
+
+void	geometry_set_palette(const t_palette *palette)
+{
+	g_active_palette = *palette;
+	rebuild_color_tables();
+}
+
+const char	*geometry_palette_cycle(void)
+{
+	g_palette_index = !g_palette_index;
+	if (g_palette_index == 0)
+	{
+		geometry_set_palette(&PALETTE_CLASSIC);
+		return ("classic");
+	}
+	geometry_set_palette(&PALETTE_VIVID);
+	return ("vivid");
+}
 
 /// @brief Clears every has_face[] flag, then sets exactly the `n`
 ///        directions in `dirs` to true.
@@ -168,6 +212,7 @@ void	geometry_init(t_render_scene *scene)
 	t_render_cubie	*cubie;
 	t_render_face	dir;
 
+	geometry_set_palette(&PALETTE_CLASSIC);
 	i = 0;
 	while (i < CORNER_COUNT)
 	{
@@ -235,6 +280,13 @@ void	geometry_sync(t_render_scene *scene, const t_cube *cube)
 		piece = cube->edge_perm[i];
 		assign_rotated(&scene->cubies[CORNER_COUNT + i], EDGE_COLORS[piece],
 			EDGE_DIRS[i], 2, cube->edge_orient[i]);
+		i++;
+	}
+	i = 0;
+	while (i < RENDER_FACE_COUNT)
+	{
+		scene->cubies[CORNER_COUNT + EDGE_COUNT + i].face[i]
+			= CENTER_COLORS[i];
 		i++;
 	}
 }
