@@ -97,7 +97,7 @@ static void	rotate_corners(t_cube *cube, const t_corner slots[4],
 	while (i < 4)
 	{
 		cube->corner_orient[slots[i]]
-			= (cube->corner_orient[slots[i]] + twist[i]) % 3;
+			= (uint8_t)((cube->corner_orient[slots[i]] + twist[i]) % 3);
 		i++;
 	}
 }
@@ -134,7 +134,7 @@ static void	rotate_edges(t_cube *cube, const t_edge slots[4],
 	while (i < 4)
 	{
 		cube->edge_orient[slots[i]]
-			= (cube->edge_orient[slots[i]] + flip[i]) % 2;
+			= (uint8_t)((cube->edge_orient[slots[i]] + flip[i]) % 2);
 		i++;
 	}
 }
@@ -155,8 +155,8 @@ void	apply_move(t_cube *cube, t_move move)
 	int					turns;
 	int					i;
 
-	face = &FACE_TABLES[move / 3];
-	turns = move % 3 + 1;
+	face = &FACE_TABLES[(int)move / 3];
+	turns = (int)move % 3 + 1;
 	i = 0;
 	while (i < turns)
 	{
