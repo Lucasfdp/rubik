@@ -13,8 +13,8 @@ else
 HOSTNOTE := arm64 host
 endif
 
-.PHONY: help build rebuild shell fish check gui-setup gui-test mandatory bonus \
-        test valgrind purge clean fix-perms
+.PHONY: help build rebuild shell fish check gui-setup gui-test vnc vnc-fish \
+        vnc-window mandatory bonus test valgrind purge clean fix-perms
 
 help:
 	@echo "rubik docker environment  ($(HOSTNOTE), PLATFORM=$(PLATFORM))"
@@ -26,6 +26,9 @@ help:
 	@echo "  make fish          interactive fish shell"
 	@echo "  make gui-setup     macOS, once: get XQuartz ready for the 3D window"
 	@echo "  make gui-test      open a real GL window for a few seconds"
+	@echo "  make vnc           shell with Xvfb+VNC instead of XQuartz  <- if gui-test fails"
+	@echo "  make vnc-fish      same, fish shell"
+	@echo "  make vnc-window    Xvfb+VNC, open a real GL window for a few seconds"
 	@echo "  make mandatory     build the mandatory binary (no graphics linked)"
 	@echo "  make bonus         build rubik_bonus (raylib) inside the container"
 	@echo "  make test          unit tests"
@@ -56,6 +59,19 @@ gui-setup:
 
 gui-test:
 	@$(RUN) --window
+
+# Xvfb + VNC instead of XQuartz — see README.md's "Xvfb + VNC" section. Use
+# this when gui-setup/gui-test still fail: it is a known modern-Mesa vs
+# XQuartz incompatibility (indirect/software GLX support Mesa dropped), not
+# something --gui-setup can fix by retrying.
+vnc:
+	@$(RUN) --vnc
+
+vnc-fish:
+	@$(RUN) --vnc --fish
+
+vnc-window:
+	@$(RUN) --vnc --window
 
 mandatory:
 	@$(RUN) -- make

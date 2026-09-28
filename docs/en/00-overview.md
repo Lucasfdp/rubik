@@ -11,14 +11,15 @@ This is the index. Each linked file covers one decision area in full, with plain
 3. **`02a-cube-notation.md`** — every cubie and facelet named, Kociemba's facelet indexing, and how corner twist / edge flip are encoded. Read this alongside `02-algorithms.md` §3.0.
 4. **`03-graphics.md`** — the 3D bonus decision. raylib vs. hand-rolled rasterizer vs. raw OpenGL.
 5. **`03a-3d-experience-and-interaction.md`** — the 3D bonus, in depth: playback modes (realtime/slow/step/scrub), a full "use it like a real cube" manual-interaction mode, and a prioritized backlog of visual-polish extras.
-6. **`04-architecture.md`** — how the code is laid out so the anti-cheat rule is structural and two people can work in parallel.
-7. **`05-roadmap-mandatory.md`** — sprint-by-sprint plan for the required part.
-8. **`06-roadmap-bonus.md`** — sprint-by-sprint plan for the 3D bonus.
-9. **`07-defence-prep.md`** — the questions you'll get asked at evaluation, with whiteboard-ready answers.
-10. **`08-risks-and-open-decisions.md`** — what could go wrong, and the decisions still left for the two of you to make.
-11. **`09-sources.md`** — every claim above that isn't "we decided this" traces back to one of these.
-12. **`10-thistlethwaite-spec.md`** — implementation spec for the second-algorithm bonus (§3.B / §3.E), grounded in the Kociemba code that already exists.
-13. **`GLOSSARY.md`** — every technical term used across all the files above, defined from scratch. No prior group-theory or graphics knowledge assumed.
+6. **`03b-3d-implementation-plan.md`** — the phase-by-phase build order for everything in `03a`: concrete data structures, function signatures, algorithms, file lists, and an exit gate per phase.
+7. **`04-architecture.md`** — how the code is laid out so the anti-cheat rule is structural and two people can work in parallel.
+8. **`05-roadmap-mandatory.md`** — sprint-by-sprint plan for the required part.
+9. **`06-roadmap-bonus.md`** — sprint-by-sprint plan for the 3D bonus.
+10. **`07-defence-prep.md`** — the questions you'll get asked at evaluation, with whiteboard-ready answers.
+11. **`08-risks-and-open-decisions.md`** — what could go wrong, and the decisions still left for the two of you to make.
+12. **`09-sources.md`** — every claim above that isn't "we decided this" traces back to one of these.
+13. **`10-thistlethwaite-spec.md`** — implementation spec for the second-algorithm bonus (§3.B / §3.E), grounded in the Kociemba code that already exists.
+14. **`GLOSSARY.md`** — every technical term used across all the files above, defined from scratch. No prior group-theory or graphics knowledge assumed.
 
 ## Recommendation, up front
 

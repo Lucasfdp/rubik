@@ -93,10 +93,50 @@ is speed: a cube of a few hundred quads is fine, but keep the window modest
 | `no OpenGL 3.3 core profile` in check-env | inside the shell try `GALLIUM_DRIVER=softpipe ./rubik_bonus ...` — slow, no JIT |
 | Window opens black or frozen | check-env's `glxinfo` section; on the amd64 image, switch to native |
 | `GLFW: Failed to create X11 window` | DISPLAY is unset in the container: check `echo $DISPLAY`, rerun without `--no-gui` |
+| `X_GLXCreateNewContext` / `BadValue`, or `libGL error: No matching fbConfigs or visuals found` even for a plain `glxinfo` (not just a core-profile request) | This isn't fixable from the XQuartz side — see "Xvfb + VNC" below |
 
 Don't fix a refused connection with plain `xhost +` — that lets any machine on
 your network draw on your screen. `xhost +localhost` is the scoped version and is
 what the script uses.
+
+---
+
+## Xvfb + VNC (if XQuartz doesn't work at all)
+
+Confirmed on a real run, 2026-09-28: XQuartz's GLX bridge can fail with
+`X_GLXCreateNewContext` coming back `BadValue` for **any** context request —
+not just a core-profile one; even a plain `glxinfo` probe fails the same way.
+That rules out a GL-version mismatch as the cause. The actual issue is that
+XQuartz bridges GLX *over the network* (`DISPLAY=host.docker.internal:0`),
+and the indirect/software GLX rendering path that used to make that work has
+been dropped from modern Mesa (this image's Ubuntu 22.04 ships Mesa ~22.x).
+There is no environment variable on either side of that connection that
+brings it back — it's the X *server* (XQuartz) refusing the request.
+
+The fix is to stop asking XQuartz to do any GL work at all. `--vnc` starts a
+real X server (`Xvfb`) *inside* the container — so the connection Mesa
+renders against is local (a Unix socket), exactly like any headless CI setup
+using `xvfb-run` — and streams the finished pixels out over VNC, a plain
+framebuffer protocol with no GL version to negotiate.
+
+```sh
+./run.sh --vnc                  # or: make vnc / make vnc-fish
+```
+
+Then, on your Mac, connect to `vnc://localhost:5900` — Finder -> Go -> Connect
+to Server -> that address, or any VNC viewer (macOS's built-in Screen Sharing
+needs nothing extra installed). The container prints the same address once
+Xvfb and the VNC server are up. From there, work exactly as in the XQuartz
+shell: `mb`, `./rubik_bonus "R U R' U'" -r`, etc. — `DISPLAY` is already set
+for you.
+
+`make vnc-window` is the `--vnc` equivalent of `make gui-test` (a spinning
+gears window for a few seconds) if you just want to confirm the path works
+before diving into `rubik_bonus` itself.
+
+This path and the XQuartz one are independent — `--vnc` never touches
+XQuartz, and doesn't need `--gui-setup` to have been run. Use whichever
+works; `--vnc` is the one to reach for if XQuartz keeps refusing contexts.
 
 ---
 
@@ -153,8 +193,9 @@ belongs in the Dockerfile.
 | File | Purpose |
 |---|---|
 | `Dockerfile` | The image: ubuntu:22.04, C toolchain, valgrind/gdb, raylib's X11 + GL headers, Mesa software GL. |
-| `run.sh` | Launcher. Picks the platform, wires up XQuartz (or a Linux X server), passes ptrace caps. |
+| `run.sh` | Launcher. Picks the platform, wires up XQuartz (or a Linux X server, or `--vnc`'s Xvfb), passes ptrace caps. |
 | `check-env.sh` | Smoke test, baked into the image as `check-env`. |
+| `vnc-start.sh` | Baked into the image as `vnc-start.sh`; starts Xvfb + x11vnc for the `--vnc` path, see above. |
 | `Makefile` | Optional convenience targets around `run.sh`. |
 | `fish/config.fish` | `m`, `mb`, `t`, `vg`, `gl` helpers for the fish shell. |
 | `valgrind.supp` | Deliberately empty suppression file. |

@@ -45,6 +45,16 @@ ARG DEBIAN_FRONTEND=noninteractive
 #   libgl1-mesa-dri  the software rasteriser (llvmpipe) — without it, no GL at all
 #   mesa-utils       glxinfo / glxgears, used by check-env to prove GL works
 #   x11-utils        xdpyinfo, to prove the X connection works
+#
+# xvfb / x11vnc: the --vnc path (docker/vnc-start.sh, run.sh --vnc). XQuartz
+# bridges GLX over the network, and the indirect/software GLX path that used
+# to make that work is gone from modern Mesa (confirmed 2026-09-28: ANY GLX
+# context request over that network DISPLAY comes back BadValue, core
+# profile or not). Xvfb is a real X server that lives INSIDE this container,
+# so Mesa's software rendering works against it exactly like it does for any
+# other headless GL program (the xvfb-run trick); x11vnc then streams the
+# finished pixels out over plain VNC, which has no GL version to negotiate.
+# See README.md's "Xvfb + VNC" section.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         make \
@@ -73,6 +83,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libgl1-mesa-dri \
         mesa-utils \
         x11-utils \
+        xvfb \
+        x11vnc \
         python3 \
         ripgrep \
         tree \
@@ -92,6 +104,9 @@ WORKDIR /workspace
 
 COPY check-env.sh /usr/local/bin/check-env
 RUN chmod +x /usr/local/bin/check-env
+
+COPY vnc-start.sh /usr/local/bin/vnc-start.sh
+RUN chmod +x /usr/local/bin/vnc-start.sh
 
 # Interactive niceties for fish. Deliberately not the CMD: scripts and
 # `run.sh -- cmd` expect a POSIX shell, so bash stays the default and fish is opt-in.

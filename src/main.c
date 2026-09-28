@@ -35,6 +35,8 @@ static int	solve_and_print(const t_cube *cube)
 
 #ifdef BONUS_ALGO
 
+# include "render.h"
+
 /// Which solver "-a" picked. Kociemba is the default (no flag needed),
 /// matching the mandatory binary's only behaviour.
 typedef enum e_algo
@@ -85,67 +87,86 @@ static int	solve_and_print_thistle(const t_cube *cube)
 	return (0);
 }
 
-/// @brief Pulls the optional "-a kociemba|thistlethwaite" flag out of argv,
-///        leaving exactly one non-flag argument: the scramble.
+/// @brief Pulls the optional "-a kociemba|thistlethwaite" and "-r" flags
+///        out of argv, leaving exactly one non-flag argument (the
+///        scramble) — except with "-r", where the scramble becomes
+///        optional (docs/en/03b-3d-implementation-plan.md section 2.2):
+///        "-r" alone opens the window on a solved cube ready for manual
+///        turning.
 ///
 /// Every option flag in this project is `-`-prefixed (docs/en/06-roadmap-
 /// bonus.md), and the scramble must stay valid regardless of which flags
-/// are combined with it — so the flag and the scramble can appear in
-/// either order, and anything else is a usage error.
+/// are combined with it — so the flags and the scramble can appear in
+/// any order, and anything else is a usage error.
 ///
-/// @param ac       Argument count, as passed to main().
-/// @param av       Argument vector, as passed to main().
-/// @param algo     Set to the requested algorithm; ALGO_KOCIEMBA if "-a"
-///                 is absent.
-/// @param scramble Set to point at the scramble argument (into av).
+/// @param ac          Argument count, as passed to main().
+/// @param av          Argument vector, as passed to main().
+/// @param algo        Set to the requested algorithm; ALGO_KOCIEMBA if
+///                    "-a" is absent.
+/// @param scramble    Set to point at the scramble argument (into av), or
+///                    NULL when "-r" was given with no scramble.
+/// @param want_render Set to true if "-r" was given.
 /// @return true on a well-formed command line; false on a usage error, in
 ///         which case a message was already printed to stderr.
 static bool	parse_args(int ac, char const *av[], t_algo *algo,
-				char const **scramble)
+				char const **scramble, bool *want_render)
 {
 	int	i;
 
 	*algo = ALGO_KOCIEMBA;
 	*scramble = NULL;
+	*want_render = false;
 	i = 1;
 	while (i < ac)
 	{
 		if (strcmp(av[i], "-a") == 0 && i + 1 < ac
 			&& strcmp(av[i + 1], "kociemba") == 0)
+		{
 			*algo = ALGO_KOCIEMBA;
+			i += 2;
+		}
 		else if (strcmp(av[i], "-a") == 0 && i + 1 < ac
 			&& strcmp(av[i + 1], "thistlethwaite") == 0)
+		{
 			*algo = ALGO_THISTLETHWAITE;
+			i += 2;
+		}
+		else if (strcmp(av[i], "-r") == 0)
+		{
+			*want_render = true;
+			i++;
+		}
 		else if (strcmp(av[i], "-a") == 0 || *scramble != NULL)
 			break ;
 		else
 		{
 			*scramble = av[i];
 			i++;
-			continue ;
 		}
-		i += 2;
 	}
-	if (i != ac || *scramble == NULL)
+	if (i != ac || (*scramble == NULL && !*want_render))
 	{
 		fprintf(stderr,
-			"usage: %s \"<scramble>\" [-a kociemba|thistlethwaite]\n",
+			"usage: %s [\"<scramble>\"] [-a kociemba|thistlethwaite] [-r]\n",
 			av[0]);
 		return (false);
 	}
 	return (true);
 }
 
-/// @brief Entry point (bonus): reads a scramble and an optional "-a" flag,
-///        then prints a solution from whichever solver was picked.
+/// @brief Entry point (bonus): reads a scramble and the optional "-a"
+///        and "-r" flags, then either prints a solution from whichever
+///        solver was picked, or (with "-r") opens the 3D window instead.
 ///
 /// Same pipeline as the mandatory build below: parse -> apply to
-/// SOLVED_CUBE -> validate -> hand ONLY the resulting cube to a solver
-/// (docs/en/01-requirements.md's anti-cheat rule). "-a" only chooses which
-/// solver runs at the very end.
+/// SOLVED_CUBE -> validate -> hand ONLY the resulting cube onward — to a
+/// solver, or to render_run() (docs/en/01-requirements.md's anti-cheat
+/// rule; docs/en/03b-3d-implementation-plan.md section 2.2). "-a" only
+/// chooses which solver runs at the very end; "-r" is checked first and,
+/// with no scramble, skips parsing entirely.
 ///
 /// @return 0 on success, 1 on a usage/parse/validation error, 2 on an
-///         internal failure (out of memory, no solution).
+///         internal failure (out of memory, no solution, render error).
 int	main(int ac, char const *av[])
 {
 	t_move			moves[MAX_MOVES];
@@ -154,9 +175,12 @@ int	main(int ac, char const *av[])
 	t_parse_status	status;
 	t_algo			algo;
 	char const		*scramble;
+	bool			want_render;
 
-	if (!parse_args(ac, av, &algo, &scramble))
+	if (!parse_args(ac, av, &algo, &scramble, &want_render))
 		return (1);
+	if (want_render && scramble == NULL)
+		return (render_run(&SOLVED_CUBE, false) ? 0 : 2);
 	status = parse_notation(scramble, moves, &count);
 	if (status != PARSE_OK)
 	{
@@ -171,6 +195,8 @@ int	main(int ac, char const *av[])
 		fprintf(stderr, "rubik: %s\n", parse_status_message(status));
 		return (1);
 	}
+	if (want_render)
+		return (render_run(&cube, true) ? 0 : 2);
 	if (cube_is_solved(&cube))
 	{
 		printf("\n");

@@ -193,7 +193,26 @@ RAYLIB_DIR		:=	lib/raylib
 RAYLIB_SRC_DIR	:=	$(RAYLIB_DIR)/src
 RAYLIB_LIB		:=	$(RAYLIB_SRC_DIR)/libraylib.a
 
+# Two ways to get raylib, picked once at parse time:
+#   1. pkg-config knows it (native macOS: `brew install raylib pkg-config`)
+#      -> flags come from `pkg-config --cflags/--libs raylib`, the vendored
+#         submodule is never built.
+#   2. it does not (Docker/XQuartz, 42 Linux boxes: no raylib.pc anywhere —
+#      the submodule's plain `make` never generates one) -> fall back to the
+#      vendored static lib in lib/raylib, exactly as before.
+# Only the cheap `--exists` probe runs on every make (stderr silenced, so a
+# missing pkg-config stays invisible to the mandatory build). The actual
+# --cflags/--libs calls use `=`, so they expand only inside bonus recipes.
+RAYLIB_PC		:=	$(shell pkg-config --exists raylib 2>/dev/null && echo 1)
+
 UNAME_S		:=	$(shell uname -s)
+ifeq ($(RAYLIB_PC),1)
+RAYLIB_CFLAGS	=	$(shell pkg-config --cflags raylib)
+LDLIBS_BONUS	=	$(shell pkg-config --libs raylib)
+RAYLIB_DEP		:=
+else
+RAYLIB_CFLAGS	:=	-I$(RAYLIB_SRC_DIR)
+RAYLIB_DEP		:=	$(RAYLIB_LIB)
 ifeq ($(UNAME_S),Darwin)
 LDLIBS_BONUS	:=	-L$(RAYLIB_SRC_DIR) -lraylib \
 					-framework OpenGL -framework Cocoa \
@@ -201,19 +220,36 @@ LDLIBS_BONUS	:=	-L$(RAYLIB_SRC_DIR) -lraylib \
 else
 LDLIBS_BONUS	:=	-L$(RAYLIB_SRC_DIR) -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
 endif
+endif
 
+# GRAPHICS=GRAPHICS_API_OPENGL_21, not raylib's own default (_33 / GL 3.3 core):
+# XQuartz's GLX implementation cannot create a core-profile context at all —
+# confirmed on a real run: X_GLXCreateNewContext comes back BadValue the
+# instant GLFW asks for GL 3.3 core, with no env var on either side of the
+# connection able to work around it (it is the X SERVER, i.e. XQuartz, that
+# refuses the request — nothing Mesa/llvmpipe does in the container changes
+# that). GL 2.1 (compatibility profile) is something XQuartz's GLX CAN hand
+# out, and this project's renderer only ever calls rlgl's fixed-function-era
+# API (DrawCube, DrawText, rlPushMatrix/rlRotatef, ...) — nothing here needs
+# a core profile or a shader, so the older backend is a fully compatible
+# swap, not a downgrade in what phases 0-3 (or 5's planned lighting, which
+# does need a real shader) can do. If you ever run this on a real Linux
+# desktop or a Wayland/XWayland setup with modern GLX instead of XQuartz,
+# GRAPHICS_API_OPENGL_33 would work fine there too — this pin is specifically
+# for the XQuartz bridge docker/README.md documents.
 $(RAYLIB_LIB):
 	@if [ ! -f $(RAYLIB_DIR)/CMakeLists.txt ] && [ ! -f $(RAYLIB_DIR)/src/Makefile ]; then \
 		printf "$(YELLOW)  raylib submodule not initialised — fetching it...$(RESET)\n"; \
 		git submodule update --init --recursive; \
 	fi
-	@printf "$(CYAN)$(BOLD)\n  Building raylib (PLATFORM_DESKTOP, first time only)...$(RESET)\n\n"
-	@$(MAKE) -C $(RAYLIB_SRC_DIR) PLATFORM=PLATFORM_DESKTOP
+	@printf "$(CYAN)$(BOLD)\n  Building raylib (PLATFORM_DESKTOP, GL 2.1 — see comment above, first time only)...$(RESET)\n\n"
+	@$(MAKE) -C $(RAYLIB_SRC_DIR) PLATFORM=PLATFORM_DESKTOP GRAPHICS=GRAPHICS_API_OPENGL_21
 
-# render/ objects additionally need raylib's headers. Pattern-specific
+# render/ objects additionally need raylib's headers (pkg-config's, or the
+# vendored ones — see RAYLIB_CFLAGS above). Pattern-specific
 # variable — only applies to objects built from under src/render/, leaves
 # every other compile rule untouched.
-$(OBJ_DIR)/$(RENDER_DIR)/%.o: CPPFLAGS += -I$(RAYLIB_SRC_DIR)
+$(OBJ_DIR)/$(RENDER_DIR)/%.o: CPPFLAGS += $(RAYLIB_CFLAGS)
 
 # ==========================
 # Colours
@@ -247,7 +283,7 @@ $(NAME): $(OBJS)
 	@$(MAKE) banner
 	@printf "$(GREEN)$(BOLD) [rubik compiled successfully — mandatory, no graphics code linked]$(RESET)\n\n"
 
-bonus: $(RAYLIB_LIB) $(NAME_BONUS)
+bonus: $(RAYLIB_DEP) $(NAME_BONUS)
 
 $(NAME_BONUS): $(CORE_OBJS) $(MAIN_BONUS_OBJ) $(THISTLE_OBJ) $(RENDER_OBJS)
 	@$(CC) $(CFLAGS) $(CORE_OBJS) $(MAIN_BONUS_OBJ) $(THISTLE_OBJ) $(RENDER_OBJS) $(LDLIBS_BONUS) -o $(NAME_BONUS)

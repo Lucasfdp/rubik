@@ -28,6 +28,7 @@ RUN_CHECK=0
 RUN_TEST=""
 GUI="auto"
 GUI_SETUP=0
+VNC_PORT="${VNC_PORT:-5900}"
 CMD=""
 START_CMD="/bin/bash"
 CHECK_CMD=(check-env)
@@ -44,6 +45,14 @@ Options:
   --gui-setup       macOS: one-time XQuartz setup (install check, network
                     clients on, start it, allow the container in)
   --no-gui          don't wire up a display, even if one is available
+  --vnc             render inside the container via Xvfb + a VNC server,
+                    instead of bridging GLX through XQuartz's network
+                    connection — connect from the Mac with any VNC viewer
+                    (macOS's own Screen Sharing app works) at
+                    vnc://localhost:5900. Use this when --gui-setup /
+                    --window still fail: it's a known modern-Mesa vs
+                    XQuartz incompatibility, not a config problem. See
+                    README.md's "Xvfb + VNC" section.
   --test            make test (unit tests), then exit
   --valgrind        make valgrind (mandatory binary), then exit
   --fish            start fish instead of bash
@@ -74,6 +83,7 @@ while [ $# -gt 0 ]; do
         --window)   RUN_CHECK=1; DO_BUILD=1; CHECK_CMD=(check-env --window); shift ;;
         --gui-setup) GUI_SETUP=1; shift ;;
         --no-gui)   GUI="no"; shift ;;
+        --vnc)      GUI="vnc"; shift ;;
         --test)     RUN_TEST="test"; DO_BUILD=1; shift ;;
         --valgrind) RUN_TEST="valgrind"; DO_BUILD=1; shift ;;
         --fish)     START_CMD="/usr/bin/fish"; shift ;;
@@ -227,6 +237,14 @@ GUI_NOTE=""
 
 if [ "$GUI" = "no" ]; then
     GUI_NOTE="disabled with --no-gui"
+elif [ "$GUI" = "vnc" ]; then
+    # No host display involved at all: Xvfb runs INSIDE the container
+    # (wired up by vnc-start.sh, prepended to the container's command
+    # below), so the only thing this launcher needs to do is publish the
+    # VNC port. Bound to 127.0.0.1 on purpose — this is a dev box, not
+    # something to expose to the LAN.
+    GUI_ARGS=(-p "127.0.0.1:${VNC_PORT}:${VNC_PORT}" -e "VNC_PORT=${VNC_PORT}")
+    GUI_STATE="Xvfb + VNC — connect to vnc://localhost:${VNC_PORT} once it's up"
 elif [ "$HOST_OS" = "Darwin" ]; then
     if ! xquartz_installed; then
         GUI_NOTE="XQuartz is not installed — run ./run.sh --gui-setup"
@@ -277,12 +295,18 @@ DOCKER_ARGS=(--rm --platform "linux/$PLATFORM"
 DOCKER_ARGS+=(${GUI_ARGS[@]+"${GUI_ARGS[@]}"})
 if [ -t 0 ] && [ -t 1 ]; then DOCKER_ARGS+=(-it); else DOCKER_ARGS+=(-i); fi
 
+# vnc-start.sh (baked into the image) starts Xvfb + x11vnc and then execs
+# whatever follows it with DISPLAY already pointed at that virtual server —
+# prepend it to the container's command instead of running one directly.
+ENTRY=()
+[ "$GUI" = "vnc" ] && ENTRY=(vnc-start.sh)
+
 if [ "$RUN_CHECK" -eq 1 ]; then
-    exec docker run "${DOCKER_ARGS[@]}" "$IMAGE" "${CHECK_CMD[@]}"
+    exec docker run "${DOCKER_ARGS[@]}" "$IMAGE" ${ENTRY[@]+"${ENTRY[@]}"} "${CHECK_CMD[@]}"
 elif [ -n "$RUN_TEST" ]; then
-    exec docker run "${DOCKER_ARGS[@]}" "$IMAGE" make "$RUN_TEST"
+    exec docker run "${DOCKER_ARGS[@]}" "$IMAGE" ${ENTRY[@]+"${ENTRY[@]}"} make "$RUN_TEST"
 elif [ -n "$CMD" ]; then
-    exec docker run "${DOCKER_ARGS[@]}" "$IMAGE" /bin/bash -lc "$CMD"
+    exec docker run "${DOCKER_ARGS[@]}" "$IMAGE" ${ENTRY[@]+"${ENTRY[@]}"} /bin/bash -lc "$CMD"
 else
-    exec docker run "${DOCKER_ARGS[@]}" "$IMAGE" "$START_CMD"
+    exec docker run "${DOCKER_ARGS[@]}" "$IMAGE" ${ENTRY[@]+"${ENTRY[@]}"} "$START_CMD"
 fi

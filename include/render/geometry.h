@@ -1,0 +1,82 @@
+#ifndef RENDER_GEOMETRY_H
+# define RENDER_GEOMETRY_H
+
+# include <stdint.h>
+# include <stdbool.h>
+# include "raylib.h"
+# include "cube.h"
+
+/// One slot per visible cubie: 8 corners + 12 edges + 6 centres.
+# define RENDER_CUBIE_COUNT (CORNER_COUNT + EDGE_COUNT + RENDER_FACE_COUNT)
+
+/// World-unit distance between neighbouring cubie centres. Slightly over
+/// 1 so a visible seam shows between cubies with no extra draw call.
+# define CUBIE_SPACING 1.05f
+
+/// World axis, used both for a move's turn axis (MOVE_AXIS in anim.c) and
+/// for describing which layer is transiently mid-turn (t_active_turn
+/// below). Axis convention locked in docs/en/03b-3d-implementation-plan.md
+/// section 2.3: +X = R, +Y = U, +Z = F (right-handed).
+typedef enum e_axis
+{
+	AXIS_X,
+	AXIS_Y,
+	AXIS_Z
+}	t_axis;
+
+typedef enum e_render_face
+{
+	FACE_UP,
+	FACE_DOWN,
+	FACE_RIGHT,
+	FACE_LEFT,
+	FACE_FRONT,
+	FACE_BACK,
+	RENDER_FACE_COUNT
+}	t_render_face;
+
+/// One of the 26 visible cubies. x/y/z is its fixed SLOT position on the
+/// lattice (each in {-1, 0, 1}) — set once by geometry_init() and never
+/// changed again: a move never moves a cubie struct to a different slot,
+/// it only ever repaints which colours sit in the 26 fixed slots. That is
+/// what makes geometry_sync() a full, cheap, always-correct resync
+/// instead of incremental bookkeeping that can drift.
+typedef struct s_render_cubie
+{
+	int8_t	x;
+	int8_t	y;
+	int8_t	z;
+	bool	has_face[RENDER_FACE_COUNT];
+	Color	face[RENDER_FACE_COUNT];
+}	t_render_cubie;
+
+typedef struct s_render_scene
+{
+	t_render_cubie	cubies[RENDER_CUBIE_COUNT];
+}	t_render_scene;
+
+/// Non-NULL / active only while an animation or drag is transiently
+/// rotating one layer; draw_scene() spins the matching cubies by
+/// angle_deg around the world axis before translating them, and draws
+/// every other cubie at its normal fixed position.
+typedef struct s_active_turn
+{
+	bool	active;
+	t_axis	axis;
+	int8_t	layer;
+	float	angle_deg;
+}	t_active_turn;
+
+/// @brief One-time setup: assigns each of the 26 slots its fixed lattice
+///        position and which of the 6 directions carry a sticker, then
+///        calls geometry_sync() against SOLVED_CUBE.
+void	geometry_init(t_render_scene *scene);
+
+/// @brief Full resync: recomputes every cubie's face[] colours from the
+///        CURRENT logical cube. Cheap (26 cubies, plain array reads), and
+///        meant to be called after every committed move — never
+///        incrementally updated, so there is no bookkeeping path that
+///        can drift out of sync with cube.
+void	geometry_sync(t_render_scene *scene, const t_cube *cube);
+
+#endif
