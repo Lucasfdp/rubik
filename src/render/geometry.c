@@ -3,24 +3,24 @@
 /// WCA colour convention (docs/en/02a-cube-notation.md section 1):
 /// U=white, D=yellow, F=green, B=blue, R=red, L=orange. Named with a _C
 /// suffix purely to avoid clashing with raylib's own WHITE/RED/etc.
-static const Color	WHITE_C = {255, 255, 255, 255};
-static const Color	YELLOW_C = {255, 213, 0, 255};
-static const Color	GREEN_C = {0, 158, 96, 255};
-static const Color	BLUE_C = {0, 81, 186, 255};
-static const Color	RED_C = {196, 30, 58, 255};
-static const Color	ORANGE_C = {255, 88, 0, 255};
+#define WHITE_C {255, 255, 255, 255}
+#define YELLOW_C {255, 213, 0, 255}
+#define GREEN_C {0, 158, 96, 255}
+#define BLUE_C {0, 81, 186, 255}
+#define RED_C {196, 30, 58, 255}
+#define ORANGE_C {255, 88, 0, 255}
 
 /// Phase 7 §9.2's second scheme (PALETTE_VIVID): deliberately NOT a
 /// subtle variation — every one of the 6 faces gets a different hue from
 /// PALETTE_CLASSIC, including U/D/L, which the first cut of this palette
 /// left unchanged (feedback: a palette switch should be obvious on every
 /// face, not just some of them).
-static const Color	VIVID_U = {255, 20, 147, 255};
-static const Color	VIVID_D = {155, 0, 255, 255};
-static const Color	VIVID_F = {160, 255, 0, 255};
-static const Color	VIVID_B = {0, 191, 255, 255};
-static const Color	VIVID_R = {255, 105, 0, 255};
-static const Color	VIVID_L = {0, 200, 180, 255};
+#define VIVID_U {255, 20, 147, 255}
+#define VIVID_D {155, 0, 255, 255}
+#define VIVID_F {160, 255, 0, 255}
+#define VIVID_B {0, 191, 255, 255}
+#define VIVID_R {255, 105, 0, 255}
+#define VIVID_L {0, 200, 180, 255}
 
 /// Fixed lattice position of each corner slot, one entry per t_corner.
 /// Derived mechanically from the slot's own name letters (U/D -> y,
