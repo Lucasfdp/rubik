@@ -10,7 +10,6 @@
 # define WINDOW_WIDTH 1280
 # define WINDOW_HEIGHT 720
 # define AUTO_LOOP_WAIT_SEC 2.0f
-# define SCRUB_STEP 10
 
 /// @brief Solves app->cube for whichever puzzle app->puzzle currently
 ///        shows: the 2x2x2 corner-only IDA* solver (twobytwo.h) for
@@ -67,9 +66,9 @@ static int	solve_with_algo(t_app *app)
 /// @brief Runs the existing anti-cheat solver pipeline (same shape as
 ///        main.c's solve_and_print* functions, dispatched by app->algo
 ///        via solve_with_algo() above), queues every move of the result
-///        for autoplay, and records it into app->solution_moves/
-///        solution_start_cube so Phase 7's scrub/reverse/auto-loop
-///        (section 9.6) can replay it later. Shared by Mode A's startup
+///        for autoplay, and records it into app->solution_moves so
+///        auto-loop's own re-solve can tell it happened. Shared by Mode
+///        A's startup
 ///        autoplay, Mode C's "solve for me", and auto-loop's own re-
 ///        solve (they are all the exact same pipeline, just triggered at
 ///        different times).
@@ -84,9 +83,6 @@ static int	queue_solution(t_app *app)
 	count = solve_with_algo(app);
 	if (count <= 0)
 		return (0);
-	app->solution_start_cube = app->cube;
-	app->solution_move_count = count;
-	app->solution_scrubbable = true;
 	app->scrambling = false;
 	i = 0;
 	while (i < count && anim_push(&app->anim, app->solution_moves[i]))
@@ -131,8 +127,6 @@ static void	init_app(t_app *app, const t_cube *start_cube, bool has_scramble,
 	app->mode = MODE_MANUAL;
 	app->algo = ALGO_KOCIEMBA;
 	app->solution_count = 0;
-	app->solution_move_count = 0;
-	app->solution_scrubbable = false;
 	app->rounded_corners = false;
 	app->auto_loop = false;
 	app->auto_loop_wait_sec = 0.0f;
@@ -169,19 +163,15 @@ static void	switch_puzzle(t_app *app)
 	app->was_solved = app_is_solved(app);
 }
 
-/// @brief Generates a fresh scramble, queues it for autoplay, records it
-///        into app->solution_moves/solution_start_cube (Phase 7 §9.6),
-///        and resets the practice session (undo/redo history and stats)
-///        — a new scramble makes the previous cube state's history
+/// @brief Generates a fresh scramble, queues it for autoplay, and
+///        resets the practice session (undo/redo history and stats) —
+///        a new scramble makes the previous cube state's history
 ///        meaningless.
 static void	do_scramble(t_app *app)
 {
 	int	i;
 
 	scramble_generate(app->solution_moves, SCRAMBLE_DEFAULT_LEN, &app->rng_seed);
-	app->solution_start_cube = app->cube;
-	app->solution_move_count = SCRAMBLE_DEFAULT_LEN;
-	app->solution_scrubbable = true;
 	i = 0;
 	while (i < SCRAMBLE_DEFAULT_LEN)
 	{
@@ -238,16 +228,13 @@ static void	tick_autoplay(t_app *app, float dt)
 
 /// @brief Shared bookkeeping for any manual move that enters the anim
 ///        pipeline, whichever door it came through (queued or a direct
-///        drag hand-off, docs/en/11-drag-review.md §5.4): retires Phase
-///        7 §9.6's scrub tracking (any manual move means the live cube
-///        has diverged from whatever solution/scramble was tracked) and
-///        starts the practice timer on the first manual move after a
-///        scramble. `record` is true only for a genuinely new turn: an
-///        undo/redo replay must NOT re-record itself, or it would defeat
-///        its own redo/undo stack.
+///        drag hand-off, docs/en/11-drag-review.md §5.4): records it
+///        into the undo/redo history and starts the practice timer on
+///        the first manual move after a scramble. `record` is true only
+///        for a genuinely new turn: an undo/redo replay must NOT
+///        re-record itself, or it would defeat its own redo/undo stack.
 static void	record_manual_move(t_app *app, t_move move, bool record)
 {
-	app->solution_scrubbable = false;
 	if (record)
 		history_record(&app->history, move);
 	if (!app->stats.timing)
@@ -297,61 +284,6 @@ static void	solve_for_me(t_app *app)
 	}
 }
 
-/// @brief Phase 7 §9.6's "jump to move N" (the +-SCRUB_STEP button
-///        version): resets the cube to the tracked solution/scramble's
-///        start, replays moves [0, target) instantly, then re-queues
-///        [target, count) so animated playback resumes from there. The
-///        current position is read back from anim's own pending count
-///        rather than kept as separate state — valid exactly as long as
-///        app->solution_scrubbable holds (see record_manual_move()).
-static void	solution_jump(t_app *app, int delta)
-{
-	int	current;
-	int	target;
-	int	i;
-
-	current = app->solution_move_count - (int)anim_pending_count(&app->anim);
-	target = current + delta;
-	if (target < 0)
-		target = 0;
-	if (target > app->solution_move_count)
-		target = app->solution_move_count;
-	app->cube = app->solution_start_cube;
-	i = 0;
-	while (i < target)
-	{
-		apply_move(&app->cube, app->solution_moves[i]);
-		i++;
-	}
-	geometry_sync(&app->scene, &app->cube);
-	anim_flush(&app->anim);
-	while (i < app->solution_move_count)
-	{
-		anim_push(&app->anim, app->solution_moves[i]);
-		i++;
-	}
-	if (target < app->solution_move_count)
-		app->mode = MODE_AUTOPLAY;
-}
-
-/// @brief Phase 7 §9.6's reverse playback: queues the tracked solution's
-///        moves inverted and back-to-front, so autoplay un-does it from
-///        wherever the cube currently sits (the end state — cube is left
-///        untouched here; each inverse commits normally as it plays).
-static void	solution_reverse(t_app *app)
-{
-	int	i;
-
-	anim_flush(&app->anim);
-	i = app->solution_move_count - 1;
-	while (i >= 0)
-	{
-		anim_push(&app->anim, move_inverse(app->solution_moves[i]));
-		i--;
-	}
-	app->mode = MODE_AUTOPLAY;
-}
-
 /// @brief One frame of Mode C's mouse half of the button split
 ///        (docs/en/11-drag-review.md §5.4): starts a drag on left-
 ///        mouse-down, updates it while held, and resolves it on
@@ -391,8 +323,8 @@ static void	tick_manual_mouse(t_app *app, float dt)
 }
 
 /// @brief One frame of Mode C (manual): reads at most one input source —
-///        an in-progress mouse drag, a scramble/solve/undo/redo/scrub
-///        key, or a keyboard face turn — and feeds any resulting move
+///        an in-progress mouse drag, a scramble/solve/undo/redo key, or
+///        a keyboard face turn — and feeds any resulting move
 ///        into the SAME anim pipeline autoplay uses. Also tracks the
 ///        practice-session timer: started by the first manual move,
 ///        stopped the instant the cube reads solved.
@@ -413,12 +345,6 @@ static void	tick_manual(t_app *app, float dt)
 			push_manual_move(app, inverse, false);
 		else if (IsKeyPressed(KEY_Y) && history_redo(&app->history, &move))
 			push_manual_move(app, move, false);
-		else if (app->solution_scrubbable && IsKeyPressed(KEY_LEFT_BRACKET))
-			solution_jump(app, -SCRUB_STEP);
-		else if (app->solution_scrubbable && IsKeyPressed(KEY_RIGHT_BRACKET))
-			solution_jump(app, SCRUB_STEP);
-		else if (app->solution_scrubbable && IsKeyPressed(KEY_BACKSLASH))
-			solution_reverse(app);
 		else
 		{
 			move = input_poll_keyboard();
@@ -435,6 +361,40 @@ static void	tick_manual(t_app *app, float dt)
 	}
 }
 
+/// @brief Opens the game window at whatever size the manual-mode HUD's
+///        two bottom hint blocks (hud_min_window_width()) need to sit
+///        side by side, never smaller than the compiled-in default.
+///        Re-opening the window -- rather than calling SetWindowSize()
+///        on the one InitWindow() already created -- matters here:
+///        SetWindowSize() pokes the new width/height into raylib's
+///        screen-size state immediately, but the real GLFW/OS resize
+///        (and the GL viewport that follows it) lands a frame or more
+///        later, so the first frames render the OLD, smaller viewport
+///        stretched across the NEW screen size -- a "zoomed in" cube
+///        that only corrects itself once the user triggers a genuine
+///        resize by dragging or maximising. Opening at the right size
+///        from the very first InitWindow() has no such gap. MeasureText()
+///        (used by hud_min_window_width()) needs the default font,
+///        which only exists once a window/GL context is up -- hence the
+///        throwaway first InitWindow() purely to measure by.
+static void	open_window(void)
+{
+	int	min_width;
+
+	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE);
+	InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "rubik -- 3D bonus");
+	min_width = hud_min_window_width();
+	if (min_width <= WINDOW_WIDTH)
+	{
+		SetWindowMinSize(WINDOW_WIDTH, WINDOW_HEIGHT);
+		return ;
+	}
+	CloseWindow();
+	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE);
+	InitWindow(min_width, WINDOW_HEIGHT, "rubik -- 3D bonus");
+	SetWindowMinSize(min_width, WINDOW_HEIGHT);
+}
+
 bool	render_run(const t_cube *start_cube, bool has_scramble,
 	t_puzzle initial_puzzle)
 {
@@ -443,8 +403,7 @@ bool	render_run(const t_cube *start_cube, bool has_scramble,
 	t_active_turn	turn;
 	bool			now_solved;
 
-	SetConfigFlags(FLAG_VSYNC_HINT);
-	InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "rubik -- 3D bonus");
+	open_window();
 	SetTargetFPS(60);
 	init_app(&app, start_cube, has_scramble, initial_puzzle);
 	while (!WindowShouldClose())

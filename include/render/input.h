@@ -8,7 +8,7 @@
 
 /// Which source is driving the cube right now. MODE_AUTOPLAY: a
 /// solver-produced queue is playing or paused. MODE_MANUAL: idle,
-/// waiting on keyboard, mouse-drag, or the timeline-scrub keys.
+/// waiting on keyboard or mouse-drag input.
 typedef enum e_render_mode
 {
 	MODE_AUTOPLAY,

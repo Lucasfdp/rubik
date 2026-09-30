@@ -42,4 +42,15 @@ void	hud_draw(const t_anim_state *anim, t_render_mode mode,
 			int total_moves, double elapsed_sec, int move_count,
 			bool auto_loop, bool scrambling, t_algo algo, t_puzzle puzzle);
 
+/// @brief The narrowest window width at which the manual-mode HUD's two
+///        bottom hint blocks (cube-turning, bottom-left; everything
+///        else, bottom-right — see hud.c's draw_manual()) can sit side
+///        by side without colliding, including a comfortable gap
+///        between them. Must be called after InitWindow() (raylib's
+///        default font, which MeasureText() uses, only exists once the
+///        window is up). render/app.c's render_run() uses this both to
+///        set SetWindowMinSize() and, if the compiled-in default is
+///        already too narrow, to widen the window up front.
+int	hud_min_window_width(void);
+
 #endif

@@ -114,9 +114,7 @@ t_active_turn	anim_get_active_turn(const t_anim_state *state);
 /// @brief How many moves are still queued or mid-flight (0 when idle).
 ///        A settle in progress (see anim_begin_settle()) never counts —
 ///        it commits no move, so it is not part of "N moves remaining".
-///        Used by the HUD, and by Phase 7 §9.6's scrub commands to work
-///        out how far into a tracked solution/scramble playback
-///        currently is.
+///        Used by the HUD to show a "done / total" progress readout.
 size_t	anim_pending_count(const t_anim_state *state);
 
 /// @brief The move whose single application equals rotating `axis` by

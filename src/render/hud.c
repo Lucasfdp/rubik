@@ -10,6 +10,9 @@
 # define HUD_PANEL_PAD 10
 # define HUD_PANEL_ROUNDNESS 0.25f
 # define HUD_PANEL_SEGMENTS 8
+# define HUD_HINT_LINE_GAP 4
+# define HUD_HINT_MARGIN (HUD_MARGIN * 2)
+# define HUD_HINT_BLOCK_GAP (HUD_MARGIN * 2)
 
 static const Color	HUD_TEXT = {225, 225, 230, 255};
 static const Color	HUD_BAR_BG = {200, 200, 200, 255};
@@ -20,17 +23,27 @@ static const Color	HUD_SCRAMBLE_FG = {235, 170, 60, 255};
 static const char	*AUTOPLAY_HINT =
 	"Space: pause  |  Right: step  |  Up/Down: speed  |  Esc: stop";
 static const char	*AUTO_LOOP_TEXT = "AUTO-LOOP demo running  |  A: stop";
-static const char	*MANUAL_HINT_1 =
-	"S: scramble  |  Z / Y: undo / redo  |  Enter: solve for me";
-static const char	*MANUAL_HINT_2 =
-	"U R F D L B to turn  |  hold Shift: ccw  |  hold 2: double turn";
-static const char	*MANUAL_HINT_3 =
-	"Left-drag a sticker: turn  |  circle a centre: turn face  |  "
-	"[ ]: scrub  |  \\: reverse solve";
-static const char	*MANUAL_HINT_4 =
-	"Right-drag/Arrows: orbit  |  wheel: zoom  |  5-8: views  |  "
-	"P: palette  |  C: corners  |  A: auto-loop  |  T: algorithm  |  "
-	"K: puzzle";
+
+/// Cube state/turning hints (scramble/undo/redo/solve plus both turn
+/// methods), drawn bottom-left, bottom-up (index 0 sits on the
+/// window's very bottom row).
+static const char	*const MOVE_HINTS[] = {
+	"Left-drag a sticker: turn  |  circle a centre: turn face",
+	"U R F D L B to turn  |  hold Shift: ccw  |  hold 2: double turn",
+	"S: scramble  |  Z / Y: undo / redo  |  Enter: solve for me",
+};
+
+/// Everything else (camera, app settings), drawn bottom-right,
+/// bottom-up, in its own block so it can never collide with
+/// MOVE_HINTS above.
+static const char	*const OTHER_HINTS[] = {
+	"A: auto-loop  |  T: algorithm  |  K: puzzle",
+	"5-8: views  |  P: palette  |  C: corners",
+	"Right-drag/Arrows: orbit  |  wheel: zoom",
+};
+
+# define MOVE_HINT_COUNT (int)(sizeof(MOVE_HINTS) / sizeof(MOVE_HINTS[0]))
+# define OTHER_HINT_COUNT (int)(sizeof(OTHER_HINTS) / sizeof(OTHER_HINTS[0]))
 
 /// @brief Name shown in the HUD for the currently-selected solver —
 ///        same three choices as main.c's "-a" flag and render/app.c's T
@@ -162,8 +175,71 @@ static void	draw_autoplay(const t_anim_state *anim, int total_moves,
 	DrawText(AUTOPLAY_HINT, HUD_MARGIN, bottom_y, HUD_FONT_SIZE, HUD_TEXT);
 }
 
-/// @brief Draws the manual-only part: mode label, the practice-session
-///        timer/move-counter/TPS line, and keybinding hints, bottom-up.
+/// @brief Widest of `count` lines, at the HUD's own font size.
+static int	hint_block_width(const char *const *lines, int count)
+{
+	int	block_w;
+	int	w;
+	int	i;
+
+	block_w = 0;
+	i = 0;
+	while (i < count)
+	{
+		w = MeasureText(lines[i], HUD_FONT_SIZE);
+		if (w > block_w)
+			block_w = w;
+		i++;
+	}
+	return (block_w);
+}
+
+/// @brief Draws one hint block, bottom-up, inset from the window's
+///        bottom-left corner (right_align false) or bottom-right corner
+///        (right_align true) by HUD_HINT_MARGIN: lines[0] sits on the
+///        very bottom row, each following line one row above it. Used
+///        to keep the cube-turning hints and the camera/session hints
+///        in separate corners so neither list overlaps or runs off the
+///        window -- see hud_min_window_width(), which sizes the window
+///        so the two blocks always have room to sit side by side.
+static void	draw_hint_block(const char *const *lines, int count,
+	bool right_align)
+{
+	int	block_w;
+	int	x;
+	int	bottom_y;
+	int	y;
+	int	i;
+
+	block_w = hint_block_width(lines, count);
+	bottom_y = GetScreenHeight() - HUD_HINT_MARGIN - HUD_FONT_SIZE;
+	if (right_align)
+		x = GetScreenWidth() - HUD_HINT_MARGIN - block_w;
+	else
+		x = HUD_HINT_MARGIN;
+	draw_panel(x - HUD_PANEL_PAD,
+		bottom_y - (count - 1) * (HUD_FONT_SIZE + HUD_HINT_LINE_GAP)
+			- HUD_PANEL_PAD, block_w + HUD_PANEL_PAD * 2,
+		count * HUD_FONT_SIZE + (count - 1) * HUD_HINT_LINE_GAP
+			+ HUD_PANEL_PAD * 2);
+	i = 0;
+	while (i < count)
+	{
+		y = bottom_y - i * (HUD_FONT_SIZE + HUD_HINT_LINE_GAP);
+		if (right_align)
+			DrawText(lines[i], x + block_w
+				- MeasureText(lines[i], HUD_FONT_SIZE), y, HUD_FONT_SIZE,
+				HUD_TEXT);
+		else
+			DrawText(lines[i], x, y, HUD_FONT_SIZE, HUD_TEXT);
+		i++;
+	}
+}
+
+/// @brief Draws the manual-only part: mode label and the practice-
+///        session timer/move-counter/TPS line top-left, cube-turning
+///        hints stacked bottom-left, and the remaining (camera/session)
+///        hints stacked bottom-right.
 static void	draw_manual(double elapsed_sec, int move_count, t_algo algo,
 	t_puzzle puzzle)
 {
@@ -172,11 +248,6 @@ static void	draw_manual(double elapsed_sec, int move_count, t_algo algo,
 	double	tps;
 	int		top_w;
 	int		w;
-	int		hint_w;
-	int		line1_y;
-	int		line2_y;
-	int		line3_y;
-	int		line4_y;
 
 	tps = 0.0;
 	if (elapsed_sec > 0.0)
@@ -198,27 +269,8 @@ static void	draw_manual(double elapsed_sec, int move_count, t_algo algo,
 	DrawText(label, HUD_MARGIN, HUD_MARGIN, HUD_FONT_SIZE, HUD_TEXT);
 	DrawText(line, HUD_MARGIN, HUD_MARGIN + HUD_FONT_SIZE + 6,
 		HUD_FONT_SIZE, HUD_TEXT);
-	line4_y = GetScreenHeight() - HUD_MARGIN - HUD_FONT_SIZE;
-	line3_y = line4_y - (HUD_FONT_SIZE + 4);
-	line2_y = line3_y - (HUD_FONT_SIZE + 4);
-	line1_y = line2_y - (HUD_FONT_SIZE + 4);
-	hint_w = MeasureText(MANUAL_HINT_4, HUD_FONT_SIZE);
-	w = MeasureText(MANUAL_HINT_3, HUD_FONT_SIZE);
-	if (w > hint_w)
-		hint_w = w;
-	w = MeasureText(MANUAL_HINT_2, HUD_FONT_SIZE);
-	if (w > hint_w)
-		hint_w = w;
-	w = MeasureText(MANUAL_HINT_1, HUD_FONT_SIZE);
-	if (w > hint_w)
-		hint_w = w;
-	draw_panel(HUD_MARGIN - HUD_PANEL_PAD, line1_y - HUD_PANEL_PAD,
-		hint_w + HUD_PANEL_PAD * 2,
-		(line4_y + HUD_FONT_SIZE) - line1_y + HUD_PANEL_PAD * 2);
-	DrawText(MANUAL_HINT_4, HUD_MARGIN, line4_y, HUD_FONT_SIZE, HUD_TEXT);
-	DrawText(MANUAL_HINT_3, HUD_MARGIN, line3_y, HUD_FONT_SIZE, HUD_TEXT);
-	DrawText(MANUAL_HINT_2, HUD_MARGIN, line2_y, HUD_FONT_SIZE, HUD_TEXT);
-	DrawText(MANUAL_HINT_1, HUD_MARGIN, line1_y, HUD_FONT_SIZE, HUD_TEXT);
+	draw_hint_block(MOVE_HINTS, MOVE_HINT_COUNT, false);
+	draw_hint_block(OTHER_HINTS, OTHER_HINT_COUNT, true);
 }
 
 void	hud_draw(const t_anim_state *anim, t_render_mode mode,
@@ -230,4 +282,15 @@ void	hud_draw(const t_anim_state *anim, t_render_mode mode,
 			puzzle);
 	else
 		draw_manual(elapsed_sec, move_count, algo, puzzle);
+}
+
+int	hud_min_window_width(void)
+{
+	int	left_w;
+	int	right_w;
+
+	left_w = hint_block_width(MOVE_HINTS, MOVE_HINT_COUNT);
+	right_w = hint_block_width(OTHER_HINTS, OTHER_HINT_COUNT);
+	return (HUD_HINT_MARGIN * 2 + HUD_PANEL_PAD * 4 + HUD_HINT_BLOCK_GAP
+		+ left_w + right_w);
 }

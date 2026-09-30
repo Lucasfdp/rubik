@@ -34,11 +34,9 @@ typedef struct s_session_stats
 /// explicitly" rule as lighting/orbit/anim already did. was_solved lets
 /// render_run() edge-detect "just became solved" once, for the
 /// celebration, regardless of which path (manual, autoplay, solve-for-
-/// me, undo/redo) got it there. solution_moves/solution_move_count/
-/// solution_start_cube/solution_scrubbable are Phase 7 §9.6's persisted
-/// solve/scramble, kept around so the scrub/reverse keys have something
-/// to replay — see push_manual_move() (app.c) for how scrubbable gets
-/// retired the moment the user diverges from the tracked sequence. algo
+/// me, undo/redo) got it there. solution_moves holds whatever the
+/// solver (or the scrambler) last produced, purely so queue_solution()/
+/// do_scramble() can feed it into anim_push() one move at a time. algo
 /// is the keyboard algorithm switch (see render/app.c's queue_solution()
 /// and the T handler in render_run()): which solver -- of the same three
 /// choices "-a" offers on the command line -- last got picked, either by
@@ -72,9 +70,6 @@ typedef struct s_app
 	float				auto_loop_wait_sec;
 	bool				scrambling;
 	t_move				solution_moves[MAX_MOVES];
-	int					solution_move_count;
-	t_cube				solution_start_cube;
-	bool				solution_scrubbable;
 	t_algo				algo;
 	t_puzzle			puzzle;
 }	t_app;
