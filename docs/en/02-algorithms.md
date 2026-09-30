@@ -30,7 +30,9 @@ Solve the first layer, then the middle-layer edges, then the last layer using a 
 | No tables, no search, no memory overhead | Lots of tedious case-handling code; ironically not *less* implementation work than the "hard" algorithms |
 | Solves instantly (<1 ms) | Nothing to defend algorithmically — doesn't demonstrate the "moderate notions of group theory" the subject asks for |
 
-**Verdict: do not ship.** One genuine use: implement it as a throwaway *oracle* to sanity-check your move engine ("does my cube model actually behave like a real cube?"). Even that's optional — a simpler round-trip test (apply a scramble, then its inverse, check you're back to solved) covers the same ground more cheaply.
+**Verdict: do not ship as the default.** One genuine use: implement it as a throwaway *oracle* to sanity-check your move engine ("does my cube model actually behave like a real cube?"). Even that's optional — a simpler round-trip test (apply a scramble, then its inverse, check you're back to solved) covers the same ground more cheaply.
+
+**Update:** shipped anyway, as a non-default, non-graded third bonus algorithm (`-a layer`, `src/solve/layer.c`) — the decision matrix above is unchanged, this is purely pedagogical: it's the one algorithm a person can follow by hand, and `-c` puts its move count next to Kociemba's and Thistlethwaite's so the spread is visible. It still fails R4 on its own move count for stages 1-3 (cross/first-layer/second-layer, hand-derived-and-verified short algorithms, no search); stage 4 hands the last layer to the existing Kociemba `solve()` rather than a hand-built OLL/PLL table (see `13-layer-by-layer-and-benchmark-spec.md`'s implementation note for why a small fixed-trigger-repetition approach for the last layer was tried and abandoned).
 
 ---
 

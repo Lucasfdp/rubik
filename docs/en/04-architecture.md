@@ -22,6 +22,7 @@ src/
     ida.c           generic IDA* driver over (coords, prune tables, move set)
     kociemba.c      phase 1 + phase 2 + sub-optimal iteration loop
     thistle.c       (optional) the four-phase variant
+    layer.c         (optional) the beginner-method variant, see 13-layer-by-layer-and-benchmark-spec.md
   render/           <-- bonus only, never linked into the mandatory binary
     geometry.c      26 cubies on the lattice
     anim.c          move queue, easing, commit-on-complete

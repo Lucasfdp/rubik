@@ -31,7 +31,7 @@
 
 NAME		:=	rubik
 NAME_BONUS	:=	rubik_bonus
-TESTS		:=	test_moves test_cubie test_parse test_coord test_movetable test_prune test_ida test_solve test_thistlethwaite
+TESTS		:=	test_moves test_cubie test_parse test_coord test_movetable test_prune test_ida test_solve test_thistlethwaite test_layer test_two_by_two
 # ^ One binary per module, all built from tests/. test_moves / test_cubie /
 #   test_parse / test_coord / test_movetable / test_prune / test_ida / test_solve / test_thistlethwaite are C unit tests; tests/test_cli.sh is the end-to-end check on
 #   ./rubik itself (exit codes, messages, stdout). `make test` runs all of
@@ -89,8 +89,26 @@ RENDER_DIR	:=	$(SRC_DIR)/render
 THISTLE_SRC	:=	$(SRC_DIR)/solve/thistlethwaite.c
 THISTLE_OBJ	:=	$(THISTLE_SRC:%.c=$(OBJ_DIR)/%.o)
 
+# Beginner (layer-by-layer) method: bonus-only the same way Thistlethwaite
+# is, and for the same reason -- the multi-algorithm-selection bonus item,
+# chosen with "-a layer" (mandatory SRCS excludes it below, linked into
+# $(NAME_BONUS) explicitly via LAYER_OBJ).
+LAYER_SRC	:=	$(SRC_DIR)/solve/layer.c
+LAYER_OBJ	:=	$(LAYER_SRC:%.c=$(OBJ_DIR)/%.o)
+
+# 2x2x2 support ("ways to work with other puzzles" bonus item, see
+# docs/en/14-other-puzzles.md): a 2x2x2 has no edges, so solving it is a
+# single-phase, corner-only search over the SAME cubie model, move tables
+# and IDA* driver as the 3x3x3 -- chosen with "-p 2x2x2" (main.c), bonus-
+# only for the same reason Thistlethwaite/layer are: excluded from
+# mandatory SRCS below, linked into $(NAME_BONUS) explicitly via
+# TWOBYTWO_OBJ.
+TWOBYTWO_SRC	:=	$(SRC_DIR)/solve/two_by_two.c
+TWOBYTWO_OBJ	:=	$(TWOBYTWO_SRC:%.c=$(OBJ_DIR)/%.o)
+
 SRCS		:=	$(shell find $(SRC_DIR) -name '*.c' -not -path '$(RENDER_DIR)/*' \
-					-not -path '$(THISTLE_SRC)')
+					-not -path '$(THISTLE_SRC)' -not -path '$(LAYER_SRC)' \
+					-not -path '$(TWOBYTWO_SRC)')
 OBJS		:=	$(SRCS:%.c=$(OBJ_DIR)/%.o)
 
 # main.c is compiled twice — see the header comment above. MAIN_OBJ is the
@@ -158,6 +176,22 @@ TH_SRCS		:=	$(TEST_DIR)/test_thistlethwaite.c $(SRC_DIR)/solve/thistlethwaite.c 
 				$(SRC_DIR)/cube/moves.c
 TH_OBJS		:=	$(TH_SRCS:%.c=$(OBJ_DIR)/%.o)
 
+LY_SRCS		:=	$(TEST_DIR)/test_layer.c $(SRC_DIR)/solve/layer.c \
+				$(SRC_DIR)/solve/solve.c $(SRC_DIR)/solve/ida.c \
+				$(SRC_DIR)/coord/prune.c $(SRC_DIR)/coord/movetable.c \
+				$(SRC_DIR)/coord/encode.c $(SRC_DIR)/coord/decode.c \
+				$(SRC_DIR)/coord/tables.c $(SRC_DIR)/parse/notation.c \
+				$(SRC_DIR)/parse/validate.c $(SRC_DIR)/cube/cubie.c \
+				$(SRC_DIR)/cube/moves.c
+LY_OBJS		:=	$(LY_SRCS:%.c=$(OBJ_DIR)/%.o)
+
+TB_SRCS		:=	$(TEST_DIR)/test_two_by_two.c $(SRC_DIR)/solve/two_by_two.c \
+				$(SRC_DIR)/solve/ida.c $(SRC_DIR)/coord/prune.c \
+				$(SRC_DIR)/coord/movetable.c $(SRC_DIR)/coord/encode.c \
+				$(SRC_DIR)/coord/decode.c $(SRC_DIR)/coord/tables.c \
+				$(SRC_DIR)/cube/cubie.c $(SRC_DIR)/cube/moves.c
+TB_OBJS		:=	$(TB_SRCS:%.c=$(OBJ_DIR)/%.o)
+
 # Bonus-only, opt-in test (never part of $(TESTS)/`make test`): the
 # drag-turning math (docs/en/11-drag-review.md §6.1) lives in
 # src/render/, so this pulls in real raylib the same way `make bonus`
@@ -169,19 +203,20 @@ DR_SRCS		:=	$(TEST_DIR)/test_drag.c $(RENDER_DIR)/input.c \
 				$(RENDER_DIR)/fx.c $(SRC_DIR)/cube/cubie.c $(SRC_DIR)/cube/moves.c
 DR_OBJS		:=	$(DR_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-ALL_OBJS	:=	$(sort $(OBJS) $(MAIN_BONUS_OBJ) $(RENDER_OBJS) $(MV_OBJS) $(CB_OBJS) $(PR_OBJS) $(CO_OBJS) $(MT_OBJS) $(PU_OBJS) $(ID_OBJS) $(SO_OBJS) $(TH_OBJS) $(DR_OBJS))
+ALL_OBJS	:=	$(sort $(OBJS) $(MAIN_BONUS_OBJ) $(LAYER_OBJ) $(TWOBYTWO_OBJ) $(RENDER_OBJS) $(MV_OBJS) $(CB_OBJS) $(PR_OBJS) $(CO_OBJS) $(MT_OBJS) $(PU_OBJS) $(ID_OBJS) $(SO_OBJS) $(TH_OBJS) $(LY_OBJS) $(TB_OBJS) $(DR_OBJS))
 
 # Progress-bar denominator: `make bonus` also compiles src/render/, `make`
 # alone never does — count accordingly so the bar actually reaches 100%
 # either way instead of stalling or overshooting.
 ifneq ($(filter bonus,$(MAKECMDGOALS)),)
 # CORE_OBJS (len(SRCS)-1, main.c swapped out) + MAIN_BONUS_OBJ (1, swapped
-# in) + THISTLE_OBJ (1, extra) + RENDER_OBJS -> len(SRCS) + len(RENDER_SRCS)
-# + 1; adding THISTLE_SRC to this word-count union is that "+1", same trick
-# the rest of this file uses instead of raw arithmetic.
-TOTAL		:=	$(words $(SRCS) $(RENDER_SRCS) $(THISTLE_SRC))
+# in) + THISTLE_OBJ (1, extra) + LAYER_OBJ (1, extra) + TWOBYTWO_OBJ (1,
+# extra) + RENDER_OBJS -> len(SRCS) + len(RENDER_SRCS) + 3; adding
+# THISTLE_SRC, LAYER_SRC and TWOBYTWO_SRC to this word-count union is that
+# "+3", same trick the rest of this file uses instead of raw arithmetic.
+TOTAL		:=	$(words $(SRCS) $(RENDER_SRCS) $(THISTLE_SRC) $(LAYER_SRC) $(TWOBYTWO_SRC))
 else ifneq ($(filter test,$(MAKECMDGOALS)),)
-TOTAL		:=	$(words $(sort $(OBJS) $(MV_OBJS) $(CB_OBJS) $(PR_OBJS) $(CO_OBJS) $(MT_OBJS) $(PU_OBJS) $(ID_OBJS) $(SO_OBJS) $(TH_OBJS)))
+TOTAL		:=	$(words $(sort $(OBJS) $(MV_OBJS) $(CB_OBJS) $(PR_OBJS) $(CO_OBJS) $(MT_OBJS) $(PU_OBJS) $(ID_OBJS) $(SO_OBJS) $(TH_OBJS) $(LY_OBJS) $(TB_OBJS)))
 else
 TOTAL		:=	$(words $(SRCS))
 endif
@@ -294,13 +329,21 @@ $(NAME): $(OBJS)
 	@$(CC) $(CFLAGS) $(OBJS) $(LDLIBS) -o $(NAME)
 	@$(MAKE) banner
 	@printf "$(GREEN)$(BOLD) [rubik compiled successfully — mandatory, no graphics code linked]$(RESET)\n\n"
+	@printf "$(CYAN)$(BOLD)  Run it:$(RESET)\n"
+	@printf "$(CYAN)    ./$(NAME) \"<scramble>\"$(RESET)   $(BOLD)->$(RESET) solves with Kociemba's two-phase algorithm\n\n"
 
 bonus: $(RAYLIB_DEP) $(NAME_BONUS)
 
-$(NAME_BONUS): $(CORE_OBJS) $(MAIN_BONUS_OBJ) $(THISTLE_OBJ) $(RENDER_OBJS)
-	@$(CC) $(CFLAGS) $(CORE_OBJS) $(MAIN_BONUS_OBJ) $(THISTLE_OBJ) $(RENDER_OBJS) $(LDLIBS_BONUS) -o $(NAME_BONUS)
+$(NAME_BONUS): $(CORE_OBJS) $(MAIN_BONUS_OBJ) $(THISTLE_OBJ) $(LAYER_OBJ) $(TWOBYTWO_OBJ) $(RENDER_OBJS)
+	@$(CC) $(CFLAGS) $(CORE_OBJS) $(MAIN_BONUS_OBJ) $(THISTLE_OBJ) $(LAYER_OBJ) $(TWOBYTWO_OBJ) $(RENDER_OBJS) $(LDLIBS_BONUS) -o $(NAME_BONUS)
 	@$(MAKE) banner
-	@printf "$(GREEN)$(BOLD) [rubik_bonus compiled successfully — 3D renderer + Thistlethwaite linked, -a to choose]$(RESET)\n\n"
+	@printf "$(GREEN)$(BOLD) [rubik_bonus compiled successfully — 3D renderer + Thistlethwaite + Layer-by-layer + 2x2x2 linked]$(RESET)\n\n"
+	@printf "$(CYAN)$(BOLD)  Run it:$(RESET)\n"
+	@printf "$(CYAN)    ./$(NAME_BONUS) \"<scramble>\" -a kociemba|thistlethwaite|layer$(RESET)  $(BOLD)->$(RESET) print one solution\n"
+	@printf "$(CYAN)    ./$(NAME_BONUS) \"<scramble>\" -p 2x2x2$(RESET)                          $(BOLD)->$(RESET) solve corners only, as a 2x2x2\n"
+	@printf "$(CYAN)    ./$(NAME_BONUS) \"<scramble>\" -c$(RESET)                                $(BOLD)->$(RESET) compare all three algorithms\n"
+	@printf "$(CYAN)    ./$(NAME_BONUS) \"<scramble>\" -r$(RESET)                                $(BOLD)->$(RESET) open the 3D window (T: cycle algorithm)\n"
+	@printf "$(CYAN)    ./$(NAME_BONUS) -r$(RESET)                                             $(BOLD)->$(RESET) open the 3D window, solved, ready to turn\n\n"
 
 # Compile with progress bar. The mkdir handles the mirrored obj/ subtree,
 # so a new src/<module>/ directory needs no rule of its own.
@@ -369,6 +412,12 @@ test_solve: $(SO_OBJS)
 
 test_thistlethwaite: $(TH_OBJS)
 	@$(CC) $(CFLAGS) $(TH_OBJS) $(LDLIBS) -o $@
+
+test_layer: $(LY_OBJS)
+	@$(CC) $(CFLAGS) $(LY_OBJS) $(LDLIBS) -o $@
+
+test_two_by_two: $(TB_OBJS)
+	@$(CC) $(CFLAGS) $(TB_OBJS) $(LDLIBS) -o $@
 
 # Opt-in only (docs/en/11-drag-review.md §6.1) — NOT part of `test`/
 # $(TESTS): `make test_bonus` builds raylib if needed, then this one
@@ -464,7 +513,7 @@ env:
 	fi
 	@printf "$(CYAN)$(BOLD)\n  Sources found$(RESET)\n\n"
 	@printf "    %-14s %s\n" "mandatory (.c)" "$(words $(SRCS))"
-	@printf "    %-14s %s\n" "bonus algo (.c)" "$(words $(THISTLE_SRC))"
+	@printf "    %-14s %s\n" "bonus algo (.c)" "$(words $(THISTLE_SRC) $(LAYER_SRC) $(TWOBYTWO_SRC))"
 	@printf "    %-14s %s\n" "render (.c)"    "$(words $(RENDER_SRCS))"
 	@if [ "$(words $(SRCS))" -eq 0 ]; then \
 		printf "    $(RED)no sources found - are you running make from the repo root?$(RESET)\n"; \
@@ -488,6 +537,8 @@ list:
 	@for f in $(SRCS); do printf "    $(GREEN)→$(RESET) $$f\n"; done
 	@printf "$(CYAN)$(BOLD)\n  Bonus-only sources — linked into $(NAME_BONUS) only:$(RESET)\n"
 	@printf "    $(MAGENTA)→$(RESET) $(THISTLE_SRC)\n"
+	@printf "    $(MAGENTA)→$(RESET) $(LAYER_SRC)\n"
+	@printf "    $(MAGENTA)→$(RESET) $(TWOBYTWO_SRC)\n"
 	@for f in $(RENDER_SRCS); do printf "    $(MAGENTA)→$(RESET) $$f\n"; done
 	@printf "$(CYAN)$(BOLD)\n  Headers:$(RESET)\n"
 	@for f in include/*.h; do printf "    $(BLUE)→$(RESET) $$f\n"; done
@@ -646,6 +697,9 @@ help:
 	@printf "\n$(CYAN)  Usage:$(RESET)\n"
 	@printf "  $(YELLOW)./rubik \"R2 U F' L2 D B R U2 L' F2\"$(RESET)                (mandatory, Kociemba only)\n"
 	@printf "  $(YELLOW)./rubik_bonus \"...\"$(RESET)                                 (bonus, Kociemba by default)\n"
-	@printf "  $(YELLOW)./rubik_bonus \"...\" -a thistlethwaite$(RESET)               (bonus, Thistlethwaite instead)\n\n"
+	@printf "  $(YELLOW)./rubik_bonus \"...\" -a thistlethwaite$(RESET)               (bonus, Thistlethwaite instead)\n"
+	@printf "  $(YELLOW)./rubik_bonus \"...\" -a layer$(RESET)                        (bonus, beginner method instead)\n"
+	@printf "  $(YELLOW)./rubik_bonus \"...\" -p 2x2x2$(RESET)                        (bonus, solve corners only — 2x2x2)\n"
+	@printf "  $(YELLOW)./rubik_bonus \"...\" -c$(RESET)                               (bonus, compare all three algorithms)\n\n"
 
 .PHONY: all bonus test clean fclean fclean-raylib re valgrind debug run check env cloc list banner flash push help

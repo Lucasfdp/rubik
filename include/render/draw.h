@@ -58,7 +58,7 @@ void	draw_lighting_unload(t_render_lighting *lighting);
 ///        to look at the bottom face, which cost more than the visual
 ///        polish was worth.)
 ///
-/// @param scene           The 26 cubies to draw.
+/// @param scene           The (up to) 26 cubies to draw.
 /// @param turn            When turn->active is true, every cubie whose
 ///                        fixed slot sits in turn->axis/turn->layer is
 ///                        drawn rotated by an extra turn->angle_deg
@@ -74,7 +74,24 @@ void	draw_lighting_unload(t_render_lighting *lighting);
 ///                        body-coloured fillet spheres over each cubie's
 ///                        8 corners, on top of the normal sharp body.
 ///                        false draws the Phase 0-6 sharp-cornered look.
+/// @param visible_count   How many of scene->cubies to actually draw —
+///                        geometry_visible_count(puzzle): every slot
+///                        for a 3x3x3, just the CORNER_COUNT corner
+///                        slots for a 2x2x2 (its edge/centre slots
+///                        still exist in `scene`, geometry_sync() still
+///                        writes them every frame, they are simply
+///                        never among the first `visible_count` and so
+///                        never reached by either drawing loop below).
+/// @param body_size       geometry_body_size(puzzle) — the solid-body
+///                        edge length to draw every visible cubie at.
+///                        Stickers and the rounded-corner fillets scale
+///                        with it (relative to the fixed CUBIE_BODY_SIZE
+///                        this file was tuned at) so a 2x2x2's larger
+///                        body still gets proportionally-sized stickers
+///                        instead of the tiny 3x3x3 ones floating on a
+///                        much bigger cube.
 void	draw_scene(const t_render_scene *scene, const t_active_turn *turn,
-			const t_render_lighting *lighting, bool rounded_corners);
+			const t_render_lighting *lighting, bool rounded_corners,
+			int visible_count, float body_size);
 
 #endif

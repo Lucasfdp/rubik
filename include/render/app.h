@@ -3,6 +3,7 @@
 
 # include "raylib.h"
 # include "cube.h"
+# include "algo.h"
 # include "parse.h"
 # include "render/geometry.h"
 # include "render/anim.h"
@@ -37,7 +38,19 @@ typedef struct s_session_stats
 /// solution_start_cube/solution_scrubbable are Phase 7 §9.6's persisted
 /// solve/scramble, kept around so the scrub/reverse keys have something
 /// to replay — see push_manual_move() (app.c) for how scrubbable gets
-/// retired the moment the user diverges from the tracked sequence.
+/// retired the moment the user diverges from the tracked sequence. algo
+/// is the keyboard algorithm switch (see render/app.c's queue_solution()
+/// and the T handler in render_run()): which solver -- of the same three
+/// choices "-a" offers on the command line -- last got picked, either by
+/// T or by whatever main.c started the window with; defaults to
+/// ALGO_KOCIEMBA. puzzle is K's keyboard puzzle switch (render/app.c's
+/// switch_puzzle() and the K handler in render_run()): which of the two
+/// t_puzzle views (3x3x3 or 2x2x2) is currently drawn/solved, either
+/// toggled live by K or picked by whatever main.c's "-p 2x2x2" started
+/// the window with; defaults to PUZZLE_3X3X3. Switching never touches
+/// app->cube itself -- both views read the exact same t_cube, a 2x2x2
+/// just never looks at or draws its edge/centre pieces (see algo.h's
+/// t_puzzle comment).
 typedef struct s_app
 {
 	t_cube				cube;
@@ -62,6 +75,8 @@ typedef struct s_app
 	int					solution_move_count;
 	t_cube				solution_start_cube;
 	bool				solution_scrubbable;
+	t_algo				algo;
+	t_puzzle			puzzle;
 }	t_app;
 
 #endif

@@ -18,7 +18,8 @@ Este es el índice. Cada archivo enlazado cubre una zona de decisión completa, 
 10. **`07-defence-prep.md`** — las preguntas que te harán en la evaluación, con respuestas listas para pizarra.
 11. **`08-risks-and-open-decisions.md`** — qué podría salir mal, y las decisiones que aún os quedan por tomar a los dos.
 12. **`09-sources.md`** — toda afirmación de arriba que no sea "esto lo decidimos nosotros" viene de aquí.
-13. **`GLOSSARY.md`** — todos los términos técnicos usados en todos los archivos anteriores, definidos desde cero. No se asume conocimiento previo de teoría de grupos ni de gráficos.
+13. **`14-other-puzzles.md`** — el ítem de bonus "otros puzzles": qué costó de verdad el soporte de 2×2×2, y por qué el 4×4×4/Megaminx/Square-1 no se extienden desde el mismo modelo.
+14. **`GLOSSARY.md`** — todos los términos técnicos usados en todos los archivos anteriores, definidos desde cero. No se asume conocimiento previo de teoría de grupos ni de gráficos.
 
 ## Recomendación, por adelantado
 

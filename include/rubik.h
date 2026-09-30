@@ -15,6 +15,9 @@
 # include "ida.h"
 # include "solve.h"
 # include "thistlethwaite.h"
+# include "algo.h"
+# include "layer.h"
+# include "twobytwo.h"
 # include "parse.h"
 
 #endif

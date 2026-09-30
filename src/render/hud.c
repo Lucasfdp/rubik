@@ -29,7 +29,29 @@ static const char	*MANUAL_HINT_3 =
 	"[ ]: scrub  |  \\: reverse solve";
 static const char	*MANUAL_HINT_4 =
 	"Right-drag/Arrows: orbit  |  wheel: zoom  |  5-8: views  |  "
-	"P: palette  |  C: corners  |  A: auto-loop";
+	"P: palette  |  C: corners  |  A: auto-loop  |  T: algorithm  |  "
+	"K: puzzle";
+
+/// @brief Name shown in the HUD for the currently-selected solver —
+///        same three choices as main.c's "-a" flag and render/app.c's T
+///        key, always lowercase to match "-a"'s own argument spelling.
+static const char	*algo_name(t_algo algo)
+{
+	if (algo == ALGO_THISTLETHWAITE)
+		return ("thistlethwaite");
+	if (algo == ALGO_LAYER)
+		return ("layer");
+	return ("kociemba");
+}
+
+/// @brief Name shown in the HUD for the currently-selected puzzle — same
+///        spelling as main.c's "-p 2x2x2" argument.
+static const char	*puzzle_name(t_puzzle puzzle)
+{
+	if (puzzle == PUZZLE_2X2X2)
+		return ("2x2x2");
+	return ("3x3x3");
+}
 
 /// @brief Draws a semi-transparent dark rounded panel behind a HUD text
 ///        block so light text stays legible over the 3D scene.
@@ -45,7 +67,7 @@ static void	draw_panel(int x, int y, int width, int height)
 ///        "done/total" progress bar scoped to whichever phase is
 ///        currently queued (never a stale total from the other phase).
 static void	draw_autoplay(const t_anim_state *anim, int total_moves,
-	bool auto_loop, bool scrambling)
+	bool auto_loop, bool scrambling, t_algo algo, t_puzzle puzzle)
 {
 	char		status_line[96];
 	char		move_line[32];
@@ -63,8 +85,16 @@ static void	draw_autoplay(const t_anim_state *anim, int total_moves,
 	int			loop_x;
 
 	y = HUD_MARGIN;
-	snprintf(status_line, sizeof(status_line), "%s  |  speed %.0f deg/s",
-		anim->paused ? "PAUSED" : "PLAYING", (double)anim->speed_deg_per_sec);
+	if (puzzle == PUZZLE_2X2X2)
+		snprintf(status_line, sizeof(status_line),
+			"%s  |  speed %.0f deg/s  |  puzzle: %s",
+			anim->paused ? "PAUSED" : "PLAYING",
+			(double)anim->speed_deg_per_sec, puzzle_name(puzzle));
+	else
+		snprintf(status_line, sizeof(status_line),
+			"%s  |  speed %.0f deg/s  |  algo: %s",
+			anim->paused ? "PAUSED" : "PLAYING",
+			(double)anim->speed_deg_per_sec, algo_name(algo));
 	top_w = MeasureText(status_line, HUD_FONT_SIZE);
 	phase_label = scrambling ? "SCRAMBLING" : "SOLVING";
 	phase_color = scrambling ? HUD_SCRAMBLE_FG : HUD_BAR_FG;
@@ -134,9 +164,11 @@ static void	draw_autoplay(const t_anim_state *anim, int total_moves,
 
 /// @brief Draws the manual-only part: mode label, the practice-session
 ///        timer/move-counter/TPS line, and keybinding hints, bottom-up.
-static void	draw_manual(double elapsed_sec, int move_count)
+static void	draw_manual(double elapsed_sec, int move_count, t_algo algo,
+	t_puzzle puzzle)
 {
 	char	line[96];
+	char	label[48];
 	double	tps;
 	int		top_w;
 	int		w;
@@ -151,14 +183,19 @@ static void	draw_manual(double elapsed_sec, int move_count)
 		tps = (double)move_count / elapsed_sec;
 	snprintf(line, sizeof(line), "time %.1fs  |  moves %d  |  tps %.2f",
 		elapsed_sec, move_count, tps);
-	top_w = MeasureText("MANUAL", HUD_FONT_SIZE);
+	if (puzzle == PUZZLE_2X2X2)
+		snprintf(label, sizeof(label), "MANUAL -- %s", puzzle_name(puzzle));
+	else
+		snprintf(label, sizeof(label), "MANUAL -- %s -- %s",
+			puzzle_name(puzzle), algo_name(algo));
+	top_w = MeasureText(label, HUD_FONT_SIZE);
 	w = MeasureText(line, HUD_FONT_SIZE);
 	if (w > top_w)
 		top_w = w;
 	draw_panel(HUD_MARGIN - HUD_PANEL_PAD, HUD_MARGIN - HUD_PANEL_PAD,
 		top_w + HUD_PANEL_PAD * 2,
 		HUD_FONT_SIZE + 6 + HUD_FONT_SIZE + HUD_PANEL_PAD * 2);
-	DrawText("MANUAL", HUD_MARGIN, HUD_MARGIN, HUD_FONT_SIZE, HUD_TEXT);
+	DrawText(label, HUD_MARGIN, HUD_MARGIN, HUD_FONT_SIZE, HUD_TEXT);
 	DrawText(line, HUD_MARGIN, HUD_MARGIN + HUD_FONT_SIZE + 6,
 		HUD_FONT_SIZE, HUD_TEXT);
 	line4_y = GetScreenHeight() - HUD_MARGIN - HUD_FONT_SIZE;
@@ -186,10 +223,11 @@ static void	draw_manual(double elapsed_sec, int move_count)
 
 void	hud_draw(const t_anim_state *anim, t_render_mode mode,
 	int total_moves, double elapsed_sec, int move_count, bool auto_loop,
-	bool scrambling)
+	bool scrambling, t_algo algo, t_puzzle puzzle)
 {
 	if (mode == MODE_AUTOPLAY)
-		draw_autoplay(anim, total_moves, auto_loop, scrambling);
+		draw_autoplay(anim, total_moves, auto_loop, scrambling, algo,
+			puzzle);
 	else
-		draw_manual(elapsed_sec, move_count);
+		draw_manual(elapsed_sec, move_count, algo, puzzle);
 }

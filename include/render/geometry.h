@@ -5,8 +5,12 @@
 # include <stdbool.h>
 # include "raylib.h"
 # include "cube.h"
+# include "algo.h"
 
-/// One slot per visible cubie: 8 corners + 12 edges + 6 centres.
+/// One slot per visible cubie: 8 corners + 12 edges + 6 centres. Always
+/// this many SLOTS regardless of which puzzle is showing -- a 2x2x2
+/// still fills slots 0..CORNER_COUNT-1 the normal way, it just never
+/// draws or raycasts the rest (geometry_visible_count() below).
 # define RENDER_CUBIE_COUNT (CORNER_COUNT + EDGE_COUNT + RENDER_FACE_COUNT)
 
 /// World-unit distance between neighbouring cubie centres. Slightly over
@@ -19,6 +23,17 @@
 /// 8.3) hit-tests the exact same box draw.c renders instead of a second,
 /// hand-copied magic number.
 # define CUBIE_BODY_SIZE 0.94f
+
+/// World-unit body size for a 2x2x2's corner cubies. CORNER_POS below
+/// never changes -- a 2x2x2 reuses the exact same 8 corner slots a
+/// 3x3x3 has, two lattice steps (2 * CUBIE_SPACING) apart on every axis
+/// with no edge cubie in between them any more -- so making the body
+/// span that whole gap, minus the same seam width the 3x3x3 leaves
+/// between its own cubies (CUBIE_SPACING - CUBIE_BODY_SIZE), keeps the
+/// 2x2x2 visually seamless with zero new position tables:
+/// 2 * CUBIE_SPACING - (CUBIE_SPACING - CUBIE_BODY_SIZE)
+///   = CUBIE_SPACING + CUBIE_BODY_SIZE.
+# define CUBIE_BODY_SIZE_2X2 (CUBIE_SPACING + CUBIE_BODY_SIZE)
 
 /// World axis, used both for a move's turn axis (MOVE_AXIS in anim.c) and
 /// for describing which layer is transiently mid-turn (t_active_turn
@@ -116,5 +131,40 @@ void	geometry_set_palette(const t_palette *palette);
 ///
 /// @return The newly active palette's short name, for the HUD.
 const char	*geometry_palette_cycle(void);
+
+/// @brief How many of the RENDER_CUBIE_COUNT slots are actually part of
+///        `puzzle`: all 26 for a 3x3x3, just the first CORNER_COUNT (the
+///        corner slots -- see geometry_init()) for a 2x2x2, which has no
+///        edge or centre pieces at all. draw_scene() and
+///        input_pick_start() both stop at this bound instead of
+///        RENDER_CUBIE_COUNT so a 2x2x2 view never draws, or lets the
+///        mouse pick, a cubie that puzzle doesn't have.
+static inline int	geometry_visible_count(t_puzzle puzzle)
+{
+	if (puzzle == PUZZLE_2X2X2)
+		return (CORNER_COUNT);
+	return (RENDER_CUBIE_COUNT);
+}
+
+/// @brief The solid-body size (draw.c) a cubie should draw at for
+///        `puzzle` -- CUBIE_BODY_SIZE_2X2 for a 2x2x2, CUBIE_BODY_SIZE
+///        otherwise. See CUBIE_BODY_SIZE_2X2's own comment for why that
+///        single number is the whole visual fix.
+static inline float	geometry_body_size(t_puzzle puzzle)
+{
+	if (puzzle == PUZZLE_2X2X2)
+		return (CUBIE_BODY_SIZE_2X2);
+	return (CUBIE_BODY_SIZE);
+}
+
+/// @brief Half-extent of the single bounding box input_pick_start()
+///        raycasts against for `puzzle` -- derived from
+///        geometry_body_size() the same way input.c's own (now removed)
+///        CUBE_HALF_EXTENT macro derived it from the one fixed
+///        CUBIE_BODY_SIZE, just puzzle-aware.
+static inline float	geometry_half_extent(t_puzzle puzzle)
+{
+	return (CUBIE_SPACING + geometry_body_size(puzzle) / 2.0f);
+}
 
 #endif

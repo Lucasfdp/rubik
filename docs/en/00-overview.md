@@ -19,7 +19,8 @@ This is the index. Each linked file covers one decision area in full, with plain
 11. **`08-risks-and-open-decisions.md`** — what could go wrong, and the decisions still left for the two of you to make.
 12. **`09-sources.md`** — every claim above that isn't "we decided this" traces back to one of these.
 13. **`10-thistlethwaite-spec.md`** — implementation spec for the second-algorithm bonus (§3.B / §3.E), grounded in the Kociemba code that already exists.
-14. **`GLOSSARY.md`** — every technical term used across all the files above, defined from scratch. No prior group-theory or graphics knowledge assumed.
+14. **`14-other-puzzles.md`** — the "other puzzles" bonus item: what 2×2×2 support actually took, and why 4×4×4/Megaminx/Square-1 don't extend from the same model.
+15. **`GLOSSARY.md`** — every technical term used across all the files above, defined from scratch. No prior group-theory or graphics knowledge assumed.
 
 ## Recommendation, up front
 

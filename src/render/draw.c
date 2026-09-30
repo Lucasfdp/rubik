@@ -4,10 +4,16 @@
 #include "render/rlights.h"
 #include "render/draw.h"
 
-# define BODY_SIZE CUBIE_BODY_SIZE
+/// STICKER_SIZE/STICKER_DEPTH/CORNER_FILLET_RADIUS below are all tuned
+/// against CUBIE_BODY_SIZE (the 3x3x3 body). draw_scene() now receives
+/// the body size to actually draw at (geometry_body_size(), CUBIE_
+/// BODY_SIZE or the larger CUBIE_BODY_SIZE_2X2), so every per-cubie
+/// helper scales these three by body_size / CUBIE_BODY_SIZE -- 1.0 for
+/// a 3x3x3 (unchanged look), > 1.0 for a 2x2x2's bigger cubies, so its
+/// stickers and fillets grow with the body instead of staying the old
+/// small 3x3x3 size on a much bigger cube.
 # define STICKER_SIZE 0.78f
 # define STICKER_DEPTH 0.02f
-# define STICKER_OFFSET (BODY_SIZE / 2.0f + 0.006f)
 # define LIGHTING_VS_120 "assets/shaders/glsl120/lighting.vs"
 # define LIGHTING_FS_120 "assets/shaders/glsl120/lighting.fs"
 # define LIGHTING_VS_330 "assets/shaders/glsl330/lighting.vs"
@@ -49,14 +55,18 @@ static Vector3	face_normal(t_render_face face)
 }
 
 /// @brief The sticker quad's own size: thin along whichever axis its
-///        normal points along, full-size on the other two.
-static Vector3	sticker_size(Vector3 normal)
+///        normal points along, full-size (scaled by `scale`, see the
+///        macro block above) on the other two.
+static Vector3	sticker_size(Vector3 normal, float scale)
 {
 	if (normal.x != 0.0f)
-		return ((Vector3){STICKER_DEPTH, STICKER_SIZE, STICKER_SIZE});
+		return ((Vector3){STICKER_DEPTH, STICKER_SIZE * scale,
+			STICKER_SIZE * scale});
 	if (normal.y != 0.0f)
-		return ((Vector3){STICKER_SIZE, STICKER_DEPTH, STICKER_SIZE});
-	return ((Vector3){STICKER_SIZE, STICKER_SIZE, STICKER_DEPTH});
+		return ((Vector3){STICKER_SIZE * scale, STICKER_DEPTH,
+			STICKER_SIZE * scale});
+	return ((Vector3){STICKER_SIZE * scale, STICKER_SIZE * scale,
+		STICKER_DEPTH});
 }
 
 /// @brief True for a GL context whose shaders need #version 120 syntax
@@ -174,13 +184,15 @@ static bool	corner_hidden(const t_render_cubie *cubie, Vector3 sign)
 ///        whose own layer is mid-turn, since a spinning layer opens
 ///        gaps that can expose a normally-enclosed corner.
 static void	draw_corner_fillets(const t_render_cubie *cubie, Vector3 center,
-	bool skip_culling)
+	bool skip_culling, float body_size)
 {
+	float	radius;
 	float	half;
 	int		i;
 	Vector3	pos;
 
-	half = BODY_SIZE / 2.0f - CORNER_FILLET_RADIUS * 0.6f;
+	radius = CORNER_FILLET_RADIUS * (body_size / CUBIE_BODY_SIZE);
+	half = body_size / 2.0f - radius * 0.6f;
 	i = 0;
 	while (i < 8)
 	{
@@ -189,7 +201,7 @@ static void	draw_corner_fillets(const t_render_cubie *cubie, Vector3 center,
 			pos = (Vector3){center.x + CORNER_SIGNS[i].x * half,
 				center.y + CORNER_SIGNS[i].y * half,
 				center.z + CORNER_SIGNS[i].z * half};
-			DrawSphereEx(pos, CORNER_FILLET_RADIUS, CORNER_FILLET_RINGS,
+			DrawSphereEx(pos, radius, CORNER_FILLET_RINGS,
 				CORNER_FILLET_SLICES, BODY_COLOR);
 		}
 		i++;
@@ -199,23 +211,28 @@ static void	draw_corner_fillets(const t_render_cubie *cubie, Vector3 center,
 /// @brief Draws one cubie's dark plastic body plus one coloured sticker
 ///        quad per populated face[] direction, centred at `center` —
 ///        the shaded (lit) half of draw_scene()'s two passes (§3.1/P1).
-static void	draw_cubie_shaded(const t_render_cubie *cubie, Vector3 center)
+static void	draw_cubie_shaded(const t_render_cubie *cubie, Vector3 center,
+	float body_size)
 {
 	int		face;
+	float	scale;
+	float	offset;
 	Vector3	normal;
 	Vector3	pos;
 
-	DrawCube(center, BODY_SIZE, BODY_SIZE, BODY_SIZE, BODY_COLOR);
+	scale = body_size / CUBIE_BODY_SIZE;
+	offset = body_size / 2.0f + 0.006f;
+	DrawCube(center, body_size, body_size, body_size, BODY_COLOR);
 	face = 0;
 	while (face < RENDER_FACE_COUNT)
 	{
 		if (cubie->has_face[face])
 		{
 			normal = face_normal((t_render_face)face);
-			pos.x = center.x + normal.x * STICKER_OFFSET;
-			pos.y = center.y + normal.y * STICKER_OFFSET;
-			pos.z = center.z + normal.z * STICKER_OFFSET;
-			DrawCubeV(pos, sticker_size(normal), cubie->face[face]);
+			pos.x = center.x + normal.x * offset;
+			pos.y = center.y + normal.y * offset;
+			pos.z = center.z + normal.z * offset;
+			DrawCubeV(pos, sticker_size(normal, scale), cubie->face[face]);
 		}
 		face++;
 	}
@@ -228,11 +245,11 @@ static void	draw_cubie_shaded(const t_render_cubie *cubie, Vector3 center)
 ///        drawn outside BeginShaderMode/EndShaderMode; splitting the two
 ///        passes this way just stops that switch happening PER CUBIE.
 static void	draw_cubie_wire(const t_render_cubie *cubie, Vector3 center,
-	bool rounded_corners, bool skip_culling)
+	bool rounded_corners, bool skip_culling, float body_size)
 {
-	DrawCubeWires(center, BODY_SIZE, BODY_SIZE, BODY_SIZE, DARKGRAY);
+	DrawCubeWires(center, body_size, body_size, body_size, DARKGRAY);
 	if (rounded_corners)
-		draw_corner_fillets(cubie, center, skip_culling);
+		draw_corner_fillets(cubie, center, skip_culling, body_size);
 }
 
 /// @brief True if this cubie's fixed slot sits on the layer a live turn
@@ -258,7 +275,8 @@ static Vector3	axis_vector(t_axis axis)
 }
 
 void	draw_scene(const t_render_scene *scene, const t_active_turn *turn,
-	const t_render_lighting *lighting, bool rounded_corners)
+	const t_render_lighting *lighting, bool rounded_corners,
+	int visible_count, float body_size)
 {
 	int						i;
 	const t_render_cubie	*cubie;
@@ -269,7 +287,7 @@ void	draw_scene(const t_render_scene *scene, const t_active_turn *turn,
 	if (lighting->loaded)
 		BeginShaderMode(lighting->shader);
 	i = 0;
-	while (i < RENDER_CUBIE_COUNT)
+	while (i < visible_count)
 	{
 		cubie = &scene->cubies[i];
 		center = (Vector3){cubie->x * CUBIE_SPACING, cubie->y * CUBIE_SPACING,
@@ -281,17 +299,17 @@ void	draw_scene(const t_render_scene *scene, const t_active_turn *turn,
 			axis = axis_vector(turn->axis);
 			rlPushMatrix();
 			rlRotatef(turn->angle_deg, axis.x, axis.y, axis.z);
-			draw_cubie_shaded(cubie, center);
+			draw_cubie_shaded(cubie, center, body_size);
 			rlPopMatrix();
 		}
 		else
-			draw_cubie_shaded(cubie, center);
+			draw_cubie_shaded(cubie, center, body_size);
 		i++;
 	}
 	if (lighting->loaded)
 		EndShaderMode();
 	i = 0;
-	while (i < RENDER_CUBIE_COUNT)
+	while (i < visible_count)
 	{
 		cubie = &scene->cubies[i];
 		center = (Vector3){cubie->x * CUBIE_SPACING, cubie->y * CUBIE_SPACING,
@@ -303,11 +321,11 @@ void	draw_scene(const t_render_scene *scene, const t_active_turn *turn,
 			axis = axis_vector(turn->axis);
 			rlPushMatrix();
 			rlRotatef(turn->angle_deg, axis.x, axis.y, axis.z);
-			draw_cubie_wire(cubie, center, rounded_corners, true);
+			draw_cubie_wire(cubie, center, rounded_corners, true, body_size);
 			rlPopMatrix();
 		}
 		else
-			draw_cubie_wire(cubie, center, rounded_corners, false);
+			draw_cubie_wire(cubie, center, rounded_corners, false, body_size);
 		i++;
 	}
 }

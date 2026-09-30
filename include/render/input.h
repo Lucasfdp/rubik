@@ -152,8 +152,18 @@ t_move	input_poll_keyboard(void);
 ///        and cubie slot straight from the hit point. Call on left-
 ///        mouse-down.
 ///
+/// @param half_extent Half the side length of that one bounding box —
+///                     geometry_half_extent(puzzle), so the box actually
+///                     matches whichever puzzle (3x3x3 or 2x2x2) is
+///                     currently on screen instead of a fixed 3x3x3-only
+///                     size. Everything past the raycast (slot_from_
+///                     coord(), is_center_pick()) reads off the hit
+///                     point itself and CUBIE_SPACING, neither of which
+///                     changes with the puzzle, so this one parameter is
+///                     the whole adjustment needed here.
 /// @return false (and leaves *drag inactive) if the ray hit nothing.
-bool	input_pick_start(t_drag_state *drag, Camera3D camera);
+bool	input_pick_start(t_drag_state *drag, Camera3D camera,
+			float half_extent);
 
 /// @brief Advances an active drag by one frame: on the first frame past
 ///        the dead zone, LOCKS axis/layer/sign/chosen from the total

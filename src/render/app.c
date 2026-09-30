@@ -13,10 +13,62 @@
 # define AUTO_LOOP_WAIT_SEC 2.0f
 # define SCRUB_STEP 10
 
-/// @brief Runs the existing anti-cheat solver pipeline (build tables,
-///        solve, free tables — same shape as main.c's own
-///        solve_and_print()), queues every move of the result for
-///        autoplay, and records it into app->solution_moves/
+/// @brief Solves app->cube for whichever puzzle app->puzzle currently
+///        shows: the 2x2x2 corner-only IDA* solver (twobytwo.h) for
+///        PUZZLE_2X2X2 -- app->algo is not even consulted then, there is
+///        only the one solver -- otherwise whichever of the three
+///        PUZZLE_3X3X3 algorithms app->algo selects, same as before.
+///        Writes straight into app->solution_moves (shared by all four:
+///        MAX_MOVES == 256 comfortably covers Kociemba's ~23,
+///        Thistlethwaite's THISTLE_MAX_MOVES == 45, the beginner
+///        method's LAYER_MAX_MOVES == 200, and the 2x2x2's own
+///        TWOBYTWO_MAX_MOVES == 11 alike). Each branch builds and frees
+///        its own tables around the call, exactly like main.c's four
+///        solve_and_print* functions.
+/// @return Move count (0 if already solved or the solver could not run).
+static int	solve_with_algo(t_app *app)
+{
+	t_solver			kociemba;
+	t_move_tables		tables;
+	t_thistle_solver	thistle;
+	t_two_solver		two;
+	int					count;
+
+	if (app->puzzle == PUZZLE_2X2X2)
+	{
+		if (!two_solver_init(&two))
+			return (0);
+		count = two_solve(&two, &app->cube, app->solution_moves);
+		two_solver_free(&two);
+		return (count);
+	}
+	if (app->algo == ALGO_THISTLETHWAITE)
+	{
+		if (!move_tables_build(&tables))
+			return (0);
+		if (!thistle_init(&thistle, &tables))
+		{
+			move_tables_free(&tables);
+			return (0);
+		}
+		count = thistle_solve(&thistle, &app->cube, app->solution_moves);
+		thistle_free(&thistle);
+		move_tables_free(&tables);
+		return (count);
+	}
+	if (app->algo == ALGO_LAYER)
+		return (layer_solve(&app->cube, app->solution_moves));
+	if (!solver_init(&kociemba))
+		return (0);
+	count = solve(&kociemba, &app->cube, app->solution_moves);
+	solver_free(&kociemba);
+	return (count);
+}
+
+/// @brief Runs the existing anti-cheat solver pipeline (same shape as
+///        main.c's solve_and_print* functions, dispatched by app->algo
+///        via solve_with_algo() above), queues every move of the result
+///        for autoplay, and records it into app->solution_moves/
 ///        solution_start_cube so Phase 7's scrub/reverse/auto-loop
 ///        (section 9.6) can replay it later. Shared by Mode A's startup
 ///        autoplay, Mode C's "solve for me", and auto-loop's own re-
@@ -27,14 +79,10 @@
 ///         solver could not run).
 static int	queue_solution(t_app *app)
 {
-	t_solver	solver;
-	int			count;
-	int			i;
+	int	count;
+	int	i;
 
-	if (!solver_init(&solver))
-		return (0);
-	count = solve(&solver, &app->cube, app->solution_moves);
-	solver_free(&solver);
+	count = solve_with_algo(app);
 	if (count <= 0)
 		return (0);
 	app->solution_start_cube = app->cube;
@@ -47,9 +95,26 @@ static int	queue_solution(t_app *app)
 	return (count);
 }
 
-static void	init_app(t_app *app, const t_cube *start_cube, bool has_scramble)
+/// @brief app->puzzle-aware "is app->cube solved": a 2x2x2 only ever
+///        looks at the 8 corners (two_cube_is_solved(), twobytwo.h) --
+///        its edges can sit scrambled and it still reads solved, exactly
+///        as the CLI's own "-p 2x2x2" already treats them (docs/en/14-
+///        other-puzzles.md). Centralises what would otherwise be the
+///        same `app->puzzle == PUZZLE_2X2X2 ? ... : ...` at every one of
+///        render_run()/tick_autoplay()/solve_for_me()/tick_manual()'s
+///        "is it solved yet" checks.
+static bool	app_is_solved(const t_app *app)
+{
+	if (app->puzzle == PUZZLE_2X2X2)
+		return (two_cube_is_solved(&app->cube));
+	return (cube_is_solved(&app->cube));
+}
+
+static void	init_app(t_app *app, const t_cube *start_cube, bool has_scramble,
+	t_puzzle initial_puzzle)
 {
 	app->cube = *start_cube;
+	app->puzzle = initial_puzzle;
 	geometry_init(&app->scene);
 	geometry_sync(&app->scene, &app->cube);
 	anim_init(&app->anim);
@@ -65,6 +130,7 @@ static void	init_app(t_app *app, const t_cube *start_cube, bool has_scramble)
 		.target = {0.0f, 0.0f, 0.0f}, .up = {0.0f, 1.0f, 0.0f},
 		.fovy = 45.0f, .projection = CAMERA_PERSPECTIVE};
 	app->mode = MODE_MANUAL;
+	app->algo = ALGO_KOCIEMBA;
 	app->solution_count = 0;
 	app->solution_move_count = 0;
 	app->solution_scrubbable = false;
@@ -72,13 +138,36 @@ static void	init_app(t_app *app, const t_cube *start_cube, bool has_scramble)
 	app->auto_loop = false;
 	app->auto_loop_wait_sec = 0.0f;
 	app->scrambling = false;
-	app->was_solved = cube_is_solved(&app->cube);
+	app->was_solved = app_is_solved(app);
 	if (has_scramble)
 	{
 		app->solution_count = queue_solution(app);
 		if (app->solution_count > 0)
 			app->mode = MODE_AUTOPLAY;
 	}
+}
+
+/// @brief K's keyboard puzzle switch: flips app->puzzle between the two
+///        t_puzzle views. Never touches app->cube/app->scene at all --
+///        both views are the exact same full cube and the exact same 26
+///        synced slots, geometry_visible_count()/geometry_body_size()
+///        (geometry.h) are what actually decide, every frame, which of
+///        those slots draw_scene() and input_pick_start() see, so there
+///        is nothing here to resync. Resets was_solved against the
+///        NEWLY-selected view so switching itself never fires a false
+///        solve celebration (a scrambled-edges cube that reads solved
+///        the instant it becomes a 2x2x2, or the reverse). render_run()
+///        only calls this while anim_is_idle() and no drag is active, so
+///        a turn can never be caught mid-spin by the switch.
+static void	switch_puzzle(t_app *app)
+{
+	if (app->puzzle == PUZZLE_3X3X3)
+		app->puzzle = PUZZLE_2X2X2;
+	else
+		app->puzzle = PUZZLE_3X3X3;
+	app->mode = MODE_MANUAL;
+	app->auto_loop = false;
+	app->was_solved = app_is_solved(app);
 }
 
 /// @brief Generates a fresh scramble, queues it for autoplay, records it
@@ -135,7 +224,7 @@ static void	tick_autoplay(t_app *app, float dt)
 		app->mode = MODE_MANUAL;
 		return ;
 	}
-	if (!cube_is_solved(&app->cube))
+	if (!app_is_solved(app))
 	{
 		app->solution_count = queue_solution(app);
 		return ;
@@ -199,7 +288,7 @@ static void	solve_for_me(t_app *app)
 {
 	int	count;
 
-	if (cube_is_solved(&app->cube))
+	if (app_is_solved(app))
 		return ;
 	count = queue_solution(app);
 	if (count > 0)
@@ -285,7 +374,8 @@ static void	tick_manual_mouse(t_app *app, float dt)
 	if (!app->drag.active)
 	{
 		if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
-			input_pick_start(&app->drag, app->camera);
+			input_pick_start(&app->drag, app->camera,
+				geometry_half_extent(app->puzzle));
 		return ;
 	}
 	if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && IsWindowFocused())
@@ -341,12 +431,13 @@ static void	tick_manual(t_app *app, float dt)
 	if (app->stats.timing)
 	{
 		app->stats.elapsed_sec = GetTime() - app->stats.timer_start_sec;
-		if (cube_is_solved(&app->cube))
+		if (app_is_solved(app))
 			app->stats.timing = false;
 	}
 }
 
-bool	render_run(const t_cube *start_cube, bool has_scramble)
+bool	render_run(const t_cube *start_cube, bool has_scramble,
+	t_puzzle initial_puzzle)
 {
 	t_app			app;
 	float			dt;
@@ -356,7 +447,7 @@ bool	render_run(const t_cube *start_cube, bool has_scramble)
 	SetConfigFlags(FLAG_VSYNC_HINT);
 	InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "rubik -- 3D bonus");
 	SetTargetFPS(60);
-	init_app(&app, start_cube, has_scramble);
+	init_app(&app, start_cube, has_scramble, initial_puzzle);
 	while (!WindowShouldClose())
 	{
 		dt = GetFrameTime();
@@ -393,11 +484,23 @@ bool	render_run(const t_cube *start_cube, bool has_scramble)
 			else if (app.mode == MODE_MANUAL)
 				do_scramble(&app);
 		}
+		if (IsKeyPressed(KEY_T))
+		{
+			if (app.algo == ALGO_KOCIEMBA)
+				app.algo = ALGO_THISTLETHWAITE;
+			else if (app.algo == ALGO_THISTLETHWAITE)
+				app.algo = ALGO_LAYER;
+			else
+				app.algo = ALGO_KOCIEMBA;
+		}
+		if (IsKeyPressed(KEY_K) && !app.drag.active
+			&& anim_is_idle(&app.anim))
+			switch_puzzle(&app);
 		if (app.mode == MODE_AUTOPLAY)
 			tick_autoplay(&app, dt);
 		else
 			tick_manual(&app, dt);
-		now_solved = cube_is_solved(&app.cube);
+		now_solved = app_is_solved(&app);
 		if (now_solved && !app.was_solved)
 			fx_spawn_celebration(&app.fx);
 		app.was_solved = now_solved;
@@ -410,12 +513,14 @@ bool	render_run(const t_cube *start_cube, bool has_scramble)
 		DrawRectangleGradientV(0, 0, GetScreenWidth(), GetScreenHeight(),
 			(Color){28, 30, 38, 255}, (Color){12, 12, 15, 255});
 		BeginMode3D(app.camera);
-		draw_scene(&app.scene, &turn, &app.lighting, app.rounded_corners);
+		draw_scene(&app.scene, &turn, &app.lighting, app.rounded_corners,
+			geometry_visible_count(app.puzzle),
+			geometry_body_size(app.puzzle));
 		fx_update_and_draw(&app.fx, dt);
 		EndMode3D();
 		hud_draw(&app.anim, app.mode, app.solution_count,
 			app.stats.elapsed_sec, app.stats.move_count, app.auto_loop,
-			app.scrambling);
+			app.scrambling, app.algo, app.puzzle);
 		EndDrawing();
 	}
 	fx_unload(&app.fx);

@@ -21,11 +21,6 @@
 /// keeps the camera in the well-defined range on both sides.
 # define ORBIT_PITCH_LIMIT_DEG 89.0f
 
-/// Half-extent of a single box covering the whole puzzle (26 cubies on
-/// a +/-1 lattice, CUBIE_SPACING apart, each CUBIE_BODY_SIZE wide) —
-/// docs/en/11-drag-review.md §1.4/B4's replacement for 26 separate,
-/// gapped per-cubie boxes.
-# define CUBE_HALF_EXTENT (CUBIE_SPACING + CUBIE_BODY_SIZE / 2.0f)
 /// Pixels of total displacement from the press point before a drag
 /// commits to an axis/layer at all (§1.2/B2).
 # define DRAG_DEADZONE_PX 8.0f
@@ -273,7 +268,8 @@ static int8_t	slot_from_coord(float c)
 ///        through to an interior neighbour's face (§1.4/B4). The normal
 ///        and cubie slot both come from the hit point itself, never from
 ///        GetRayCollisionBox()'s own (truncated-to-int) normal.
-bool	input_pick_start(t_drag_state *drag, Camera3D camera)
+bool	input_pick_start(t_drag_state *drag, Camera3D camera,
+	float half_extent)
 {
 	RayCollision	hit;
 	BoundingBox		box;
@@ -284,10 +280,8 @@ bool	input_pick_start(t_drag_state *drag, Camera3D camera)
 	int				k;
 
 	*drag = (t_drag_state){0};
-	box.min = (Vector3){-CUBE_HALF_EXTENT, -CUBE_HALF_EXTENT,
-		-CUBE_HALF_EXTENT};
-	box.max = (Vector3){CUBE_HALF_EXTENT, CUBE_HALF_EXTENT,
-		CUBE_HALF_EXTENT};
+	box.min = (Vector3){-half_extent, -half_extent, -half_extent};
+	box.max = (Vector3){half_extent, half_extent, half_extent};
 	hit = GetRayCollisionBox(GetScreenToWorldRay(GetMousePosition(),
 			camera), box);
 	if (!hit.hit)
