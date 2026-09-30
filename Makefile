@@ -343,7 +343,8 @@ $(NAME_BONUS): $(CORE_OBJS) $(MAIN_BONUS_OBJ) $(THISTLE_OBJ) $(LAYER_OBJ) $(TWOB
 	@printf "$(CYAN)    ./$(NAME_BONUS) \"<scramble>\" -p 2x2x2$(RESET)                          $(BOLD)->$(RESET) solve corners only, as a 2x2x2\n"
 	@printf "$(CYAN)    ./$(NAME_BONUS) \"<scramble>\" -c$(RESET)                                $(BOLD)->$(RESET) compare all three algorithms\n"
 	@printf "$(CYAN)    ./$(NAME_BONUS) \"<scramble>\" -r$(RESET)                                $(BOLD)->$(RESET) open the 3D window (T: cycle algorithm)\n"
-	@printf "$(CYAN)    ./$(NAME_BONUS) -r$(RESET)                                             $(BOLD)->$(RESET) open the 3D window, solved, ready to turn\n\n"
+	@printf "$(CYAN)    ./$(NAME_BONUS) -r$(RESET)                                             $(BOLD)->$(RESET) open the 3D window, solved, ready to turn\n"
+	@printf "$(CYAN)    ./$(NAME_BONUS) -g LENGTH [-n COUNT]$(RESET)                           $(BOLD)->$(RESET) generate + print one or more mixes\n\n"
 
 # Compile with progress bar. The mkdir handles the mirrored obj/ subtree,
 # so a new src/<module>/ directory needs no rule of its own.
@@ -700,6 +701,9 @@ help:
 	@printf "  $(YELLOW)./rubik_bonus \"...\" -a thistlethwaite$(RESET)               (bonus, Thistlethwaite instead)\n"
 	@printf "  $(YELLOW)./rubik_bonus \"...\" -a layer$(RESET)                        (bonus, beginner method instead)\n"
 	@printf "  $(YELLOW)./rubik_bonus \"...\" -p 2x2x2$(RESET)                        (bonus, solve corners only — 2x2x2)\n"
-	@printf "  $(YELLOW)./rubik_bonus \"...\" -c$(RESET)                               (bonus, compare all three algorithms)\n\n"
+	@printf "  $(YELLOW)./rubik_bonus \"...\" -c$(RESET)                               (bonus, compare all three algorithms)\n"
+	@printf "  $(YELLOW)./rubik_bonus -g 30$(RESET)                                (bonus, generate + print one 30-move mix)\n"
+	@printf "  $(YELLOW)./rubik_bonus -n 5$(RESET)                                 (bonus, print 5 generated mixes)\n"
+	@printf "  $(YELLOW)./rubik_bonus -g 30 -n 5$(RESET)                           (bonus, 5 mixes of 30 moves each)\n\n"
 
 .PHONY: all bonus test clean fclean fclean-raylib re valgrind debug run check env cloc list banner flash push help

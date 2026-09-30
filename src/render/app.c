@@ -9,7 +9,6 @@
 
 # define WINDOW_WIDTH 1280
 # define WINDOW_HEIGHT 720
-# define SCRAMBLE_LEN 20
 # define AUTO_LOOP_WAIT_SEC 2.0f
 # define SCRUB_STEP 10
 
@@ -179,17 +178,17 @@ static void	do_scramble(t_app *app)
 {
 	int	i;
 
-	scramble_generate(app->solution_moves, SCRAMBLE_LEN, &app->rng_seed);
+	scramble_generate(app->solution_moves, SCRAMBLE_DEFAULT_LEN, &app->rng_seed);
 	app->solution_start_cube = app->cube;
-	app->solution_move_count = SCRAMBLE_LEN;
+	app->solution_move_count = SCRAMBLE_DEFAULT_LEN;
 	app->solution_scrubbable = true;
 	i = 0;
-	while (i < SCRAMBLE_LEN)
+	while (i < SCRAMBLE_DEFAULT_LEN)
 	{
 		anim_push(&app->anim, app->solution_moves[i]);
 		i++;
 	}
-	app->solution_count = SCRAMBLE_LEN;
+	app->solution_count = SCRAMBLE_DEFAULT_LEN;
 	app->scrambling = true;
 	app->mode = MODE_AUTOPLAY;
 	history_init(&app->history);
