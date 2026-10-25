@@ -591,15 +591,15 @@ banner:
 		sleep 0.02; printf "    $(CYAN)/$(RESET)%b           $(RESET)$(CYAN)/$(RESET)%b $(RESET)$(CYAN)|$(RESET)\n" "$$TOP_COLOR" "$$SIDE_COLOR"; \
 		sleep 0.02; printf "  $(CYAN)/$(RESET)%b           $(RESET)$(CYAN)/$(RESET)%b   $(RESET)$(CYAN)|$(RESET)\n" "$$TOP_COLOR" "$$SIDE_COLOR"; \
 		sleep 0.03; printf "$(CYAN)+---+---+---+$(RESET)%b     $(RESET)$(CYAN)|$(RESET)\n" "$$SIDE_COLOR"; \
-		printf "\033[s"; \
 		sleep 0.06; printf "$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b     $(RESET)$(CYAN)|$(RESET)\n" "$$(pick)" "$$(pick)" "$$(pick)" "$$SIDE_COLOR"; \
 		sleep 0.03; printf "$(CYAN)+---+---+---+$(RESET)%b     $(RESET)$(CYAN)|$(RESET)\n" "$$SIDE_COLOR"; \
 		sleep 0.06; printf "$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b     $(RESET)$(CYAN)|$(RESET)\n" "$$(pick)" "$$(pick)" "$$(pick)" "$$SIDE_COLOR"; \
 		sleep 0.03; printf "$(CYAN)+---+---+---+$(RESET)%b   $(RESET)$(CYAN)/$(RESET)\n" "$$SIDE_COLOR"; \
 		sleep 0.06; printf "$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b $(RESET)$(CYAN)/$(RESET)\n" "$$(pick)" "$$(pick)" "$$(pick)" "$$SIDE_COLOR"; \
 		sleep 0.03; printf "$(CYAN)+---+---+---+$(RESET)\n"; \
+		printf "\033[?25l"; trap "printf \"\033[?25h\"" EXIT; \
 		for _f in 1 2 3 4; do \
-			printf "\033[u"; \
+			printf "\033[6A\r"; \
 			printf "$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b     $(RESET)$(CYAN)|$(RESET)\n" "$$(pick)" "$$(pick)" "$$(pick)" "$$SIDE_COLOR"; \
 			printf "$(CYAN)+---+---+---+$(RESET)%b     $(RESET)$(CYAN)|$(RESET)\n" "$$SIDE_COLOR"; \
 			printf "$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b     $(RESET)$(CYAN)|$(RESET)\n" "$$(pick)" "$$(pick)" "$$(pick)" "$$SIDE_COLOR"; \
@@ -628,7 +628,6 @@ flash:
 		printf "    $(CYAN)/$(RESET)%b           $(RESET)$(CYAN)/$(RESET)%b $(RESET)$(CYAN)|$(RESET)\n" "$$TOP_COLOR" "$$SIDE_COLOR"; \
 		printf "  $(CYAN)/$(RESET)%b           $(RESET)$(CYAN)/$(RESET)%b   $(RESET)$(CYAN)|$(RESET)\n" "$$TOP_COLOR" "$$SIDE_COLOR"; \
 		printf "$(CYAN)+---+---+---+$(RESET)%b     $(RESET)$(CYAN)|$(RESET)\n" "$$SIDE_COLOR"; \
-		printf "\033[s"; \
 		printf "$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b     $(RESET)$(CYAN)|$(RESET)\n" "$$(pick)" "$$(pick)" "$$(pick)" "$$SIDE_COLOR"; \
 		printf "$(CYAN)+---+---+---+$(RESET)%b     $(RESET)$(CYAN)|$(RESET)\n" "$$SIDE_COLOR"; \
 		printf "$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b     $(RESET)$(CYAN)|$(RESET)\n" "$$(pick)" "$$(pick)" "$$(pick)" "$$SIDE_COLOR"; \
@@ -636,15 +635,17 @@ flash:
 		printf "$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b $(RESET)$(CYAN)/$(RESET)\n" "$$(pick)" "$$(pick)" "$$(pick)" "$$SIDE_COLOR"; \
 		printf "$(CYAN)+---+---+---+$(RESET)\n"; \
 		printf "$(YELLOW)  [flashing for 30s — Ctrl+C to stop early]$(RESET)\n"; \
+		printf "\033[?25l"; trap "printf \"\033[?25h\"" EXIT; trap "exit 130" INT; \
 		SECONDS=0; \
 		while [ $$SECONDS -lt 30 ]; do \
-			printf "\033[u"; \
+			printf "\033[7A\r"; \
 			printf "$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b     $(RESET)$(CYAN)|$(RESET)\n" "$$(pick)" "$$(pick)" "$$(pick)" "$$SIDE_COLOR"; \
 			printf "$(CYAN)+---+---+---+$(RESET)%b     $(RESET)$(CYAN)|$(RESET)\n" "$$SIDE_COLOR"; \
 			printf "$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b     $(RESET)$(CYAN)|$(RESET)\n" "$$(pick)" "$$(pick)" "$$(pick)" "$$SIDE_COLOR"; \
 			printf "$(CYAN)+---+---+---+$(RESET)%b   $(RESET)$(CYAN)/$(RESET)\n" "$$SIDE_COLOR"; \
 			printf "$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b   $(RESET)$(CYAN)|$(RESET)%b $(RESET)$(CYAN)/$(RESET)\n" "$$(pick)" "$$(pick)" "$$(pick)" "$$SIDE_COLOR"; \
 			printf "$(CYAN)+---+---+---+$(RESET)\n"; \
+			printf "\033[1B\r"; \
 			sleep 0.1; \
 		done; \
 		printf "\n"; \
